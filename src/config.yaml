@@ -1,0 +1,76 @@
+# python-train args
+# 建议使用绝对路径
+training_data_paths:
+- [
+  'data/bilibili/csv/bilibili_20250616_204043_10h_android_16.csv',
+  'data/bilibili/csv/bilibili_20250716_101749_5h_android_18.csv',
+  'data/bilibili/csv/bilibili_20250717_191237_50400_android_17.csv',
+  'data/bilibili/csv/bilibili_20250718_101704_25200_android_19.csv',
+  # 'data/bilibili/csv/bilibili_20250721_141827_21600_android_20.csv'
+]
+- [
+  'data/aiqiyi/csv/aiqiyi_20250715_093827_5h_android_16.csv',
+  'data/aiqiyi/csv/aiqiyi_20250716_102837_5h_android_20.csv',
+  'data/aiqiyi/csv/aiqiyi_20250717_162945_18000_android_18.csv',
+  'data/aiqiyi/csv/aiqiyi_20250718_101245_18000_android_17.csv',
+  # 'data/aiqiyi/csv/aiqiyi_20250721_141719_21600_android_19.csv'
+]
+- [
+  'data/tencent/csv/tencent_20250730_172237_57600_android_16.csv',
+  'data/tencent/csv/tencent_20250730_172402_57600_android_17.csv',
+  'data/tencent/csv/tencent_20250730_172448_57600_android_18.csv',
+  'data/tencent/csv/tencent_20250730_172613_57600_android_19.csv',
+  # 'data/tencent/csv/tencent_20250730_172737_57600_android_20.csv'
+]
+- [
+  'data/wenxiaoyan/csv/wenxiaoyan_20250726_172552_129600_android_16.csv',
+  'data/wenxiaoyan/csv/wenxiaoyan_20250804_204806_144000_android_17.csv',
+  'data/wenxiaoyan/csv/wenxiaoyan_20250804_205024_144000_android_18.csv',
+  'data/wenxiaoyan/csv/wenxiaoyan_20250804_205029_144000_android_19.csv',
+  # 'data/wenxiaoyan/csv/wenxiaoyan_20250804_205038_144000_android_20.csv'
+]
+- [
+  'data/doubao/csv/doubao_20250717_100030_72000_android_18.csv',
+  'data/doubao/csv/doubao_20250717_162530_72000_android_20.csv',
+  'data/doubao/csv/doubao_20250718_165736_216000_android_16.csv',
+  'data/doubao/csv/doubao_20250718_172518_216000_android_19.csv',
+  # 'data/doubao/csv/doubao_20250721_201921_216000_android_17.csv'
+]
+- [
+  'data/yuanbao/csv/yuanbao_20250717_103127_72000_android_16.csv',
+  'data/yuanbao/csv/yuanbao_20250717_105526_72000_android_19.csv',
+  'data/yuanbao/csv/yuanbao_20250718_155131_216000_android_17.csv',
+  'data/yuanbao/csv/yuanbao_20250718_155433_216000_android_20.csv',
+  # 'data/yuanbao/csv/yuanbao_20250721_142339_216000_android_18.csv'
+]
+
+training_labels: [0, 1, 2, 3, 4, 5]
+# 输出文件路径配置
+# inference-python args
+model_path_pkl: 'result/model_classifier_6.pkl'
+scaler_path_pkl: 'result/scaler_6.pkl'
+
+evaluation_data_paths:
+  - ['data/bilibili/csv/bilibili_20250721_141827_21600_android_20.csv']
+  - ['data/aiqiyi/csv/aiqiyi_20250721_141719_21600_android_19.csv']
+  - ['data/tencent/csv/tencent_20250730_172737_57600_android_20.csv']
+  - ['data/wenxiaoyan/csv/wenxiaoyan_20250804_205038_144000_android_20.csv']
+  - ['data/doubao/csv/doubao_20250721_201921_216000_android_17.csv']
+  - ['data/yuanbao/csv/yuanbao_20250721_142339_216000_android_18.csv']
+
+evaluation_labels: 
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+
+# C++推理Inference模型和标准化器路径
+model_path_onnx: result/model_classifier_6.onnx
+scaler_path_json: result/scaler_params_6.json
+
+# C++推理Inference输出配置
+output_dir: result
+classification_report_file: result/classification_report_6.txt
+predictions_detail_file: result/predictions_detail_6.csv
