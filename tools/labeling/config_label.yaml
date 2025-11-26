@@ -1,0 +1,15 @@
+# config.yaml
+# 训练配置
+train:
+  data_paths: ['data/youku/csv', 'data/yuanbao/csv', 'data/wymusic/csv'] # 参与训练的数据，每个路径下可以有多个特征提取csv文件
+  model_name: "labeling_train"  # 当前训练模型权重名
+  n_clusters: 3                 # 当前数据集训练聚类数量
+  test_size: 0.3                # 数据集划分 30%用来测试，70%用来训练
+  results_dir: "results"        # 输出结果保存位置
+
+# 推理配置
+inference:
+  data_paths: ['data/youku/csv', 'data/yuanbao/csv', 'data/wymusic/csv']  # 参与测试的数据，每个路径下可以有多个特征提取csv文件
+  model_path: "results/labeling_train_model.pkl"    # 当前加载预训练模型权重
+  scaler_path: "results/labeling_train_scaler.pkl"  # 当前加载预训练标准化器权重
+  output_file: "output/outpucsv"  # 输出结果保存位置
