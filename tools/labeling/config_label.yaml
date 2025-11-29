@@ -12,4 +12,4 @@ inference:
   data_paths: ['data/youku/csv', 'data/yuanbao/csv', 'data/wymusic/csv']  # 参与测试的数据，每个路径下可以有多个特征提取csv文件
   model_path: "results/labeling_train_model.pkl"    # 当前加载预训练模型权重
   scaler_path: "results/labeling_train_scaler.pkl"  # 当前加载预训练标准化器权重
-  output_file: "output/outpucsv"  # 输出结果保存位置
+  output_file: "output/output.csv"  # 输出结果保存位置
