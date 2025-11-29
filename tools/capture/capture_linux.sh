@@ -283,8 +283,6 @@ echo "开始抓包..."
 # 构建tcpdump命令参数数组（安全方式）
 TCPDUMP_ARGS=()
 TCPDUMP_ARGS+=("-i" "$INTERFACE")
-TCPDUMP_ARGS+=("-G" "$DURATION")
-TCPDUMP_ARGS+=("-W" "1")
 TCPDUMP_ARGS+=("-w" "$OUTPUTFILE")
 
 # 如果是root用户，添加-Z root参数禁用权限降级
@@ -298,15 +296,20 @@ if [ -n "$FILTER" ]; then
 fi
 
 # 显示执行的命令（用于调试）
-echo "执行命令: tcpdump ${TCPDUMP_ARGS[*]}"
+echo "执行命令: timeout ${DURATION}s tcpdump ${TCPDUMP_ARGS[*]}"
 
 # 安全执行tcpdump命令
-if tcpdump "${TCPDUMP_ARGS[@]}"; then
+if timeout ${DURATION}s tcpdump "${TCPDUMP_ARGS[@]}"; then
     echo "抓包完成"
 else
     TCPDUMP_EXIT_CODE=$?
-    echo "错误: tcpdump执行失败，退出代码: $TCPDUMP_EXIT_CODE"
-    exit 1
+    # timeout 的退出代码 124 表示超时，这是正常的
+    if [ $TCPDUMP_EXIT_CODE -eq 124 ]; then
+        echo "抓包完成（达到指定时长）"
+    else
+        echo "错误: tcpdump执行失败，退出代码: $TCPDUMP_EXIT_CODE"
+        exit 1
+    fi
 fi
 
 # 检查结果

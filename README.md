@@ -26,6 +26,8 @@ KDADK-TOOLS当前适配的处理器和操作系统为鲲鹏920系列处理器，
 | yaml-cpp | 0.8.0 |
 | onnxruntime| 1.22.0及以上|
 
+- 注：还需准备python环境，相关软件包及版本可见`KDADK-TOOLS/src/py/packages.txt`
+
 ### 3.1 依赖准备
 #### 3.1.1 安装yaml-cpp
 [这里](https://github.com/jbeder/yaml-cpp/releases/tag/0.8.0)下载源码包
@@ -82,6 +84,21 @@ tar -xzf onnxruntime-linux-aarch64-1.22.0.tgz
 
 # 设置环境变量
 export ONNXRUNTIME_HOME=/path/to/your/onnxruntime
+export LD_LIBRARY_PATH=$ONNXRUNTIME_HOME/lib:$LD_LIBRARY_PATH
+```
+
+#### 3.1.3 配置华为安全函数
+[这里](https://gitee.com/openeuler/libboundscheck)下载源码包
+
+将下载好的源码放在`KDADK-TOOLS/util/`文件夹下
+
+```
+# 进入到KDADK-TOOLS/util/libboundscheck/下
+make CC=gcc
+
+# 设置环境变量
+export SECUREC_HOME=/path/to/your/libboundscheck
+export LD_LIBRARY_PATH=$SECUREC_HOME/lib:$LD_LIBRARY_PATH
 ```
 
 ## 4. 使用说明
@@ -96,7 +113,8 @@ Usage:
   ./kdadk_appid -i <config.yaml>            Run inference
   ./kdadk_appid -h                          Show this help
 ```
-四个接口的使用方法分别是：
+四个接口的使用方法分别如下。
+- 注：output下的可执行文件以及动态链接库使用前需要添加执行权限。
 
 ### 4.1 **特征提取接口**
 `./kdadk_appid -f <pcap_file>`

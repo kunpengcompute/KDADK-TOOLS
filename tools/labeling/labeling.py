@@ -129,19 +129,19 @@ def load_and_prepare_data(data_paths: list, labels: list = None, inference=False
     
     # 标准化输入格式
     normalized_paths = []
-    for i, item in enumerate(data_paths):
-        if isinstance(item, dict):
+    for i, ite in enumerate(data_paths):
+        if isinstance(ite, dict):
             normalized_paths.append({
-                'path': item.get('path'),
-                'name': item.get('name', f'dataset_{i}')
+                'path': ite.get('path'),
+                'name': ite.get('name', f'dataset_{i}')
             })
-        elif isinstance(item, str):
+        elif isinstance(ite, str):
             normalized_paths.append({
-                'path': item,
+                'path': ite,
                 'name': f'dataset_{i}'
             })
         else:
-            raise ValueError(f"数据路径格式错误: {item}")
+            raise ValueError(f"数据路径格式错误: {ite}")
     
     # 加载数据并添加标签
     valid_datasets = []
