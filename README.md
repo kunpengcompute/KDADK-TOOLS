@@ -100,7 +100,12 @@ make CC=gcc
 export SECUREC_HOME=/path/to/your/libboundscheck
 export LD_LIBRARY_PATH=$SECUREC_HOME/lib:$LD_LIBRARY_PATH
 ```
+#### 3.1.4 配置python环境
 
+在`src/py/packages.txt`文件中记录了离线训练需要的python环境依赖，可以执行下述命令安装python环境依赖
+```
+pip install -r src/py/packages.txt
+```
 ## 4. 使用说明
 KDADK-TOOLS的入口函数目前有四个接口，分别是特征提取接口、模型训练接口、模型评估接口（python）以及模型推理接口（C++）。如下所示：
 
@@ -116,7 +121,7 @@ Usage:
 四个接口的使用方法分别如下。
 - 注：output下的可执行文件以及动态链接库使用前需要添加执行权限。
 
-### 4.1 **特征提取接口**
+### 4.1 特征提取接口
 `./kdadk_appid -f <pcap_file>`
 其中参数`<pcap_file>`为要进行特征提取操作的pcap文件地址，输出为csv特征数据，位于pcap文件同级目录下。
 
@@ -137,9 +142,10 @@ python delete_flow_under_16.py
 
 python delete_first_two_column.py
 ```
-### 4.2 **模型训练接口**
+### 4.2 模型训练接口
 `./kdadk_appid -t <config.yaml>`
-其中参数`<config.yaml>`为配置模型训练所需csv文件的yaml文件地址，该接口采用调用随机森林训练python文件运行的方式执行。`config.yaml`默认在`src/`目录下。
+其中参数`<config.yaml>`为配置模型训练所需csv文件的yaml文件地址，该接口采用调用随机森林训练python文件运行的方式执行。`config.yaml`默认在`src/`目录下。[config配置说明](#config配置)
+
 
 ```
 (base) [root@ceph1 output]# ./kdadk_appid -t ../src/config.yaml 
@@ -185,9 +191,9 @@ Training model with: src/config.yaml
 2025-11-25 14:56:52,843 - INFO - Scaler saved as result/scaler.pkl
 StandardScaler 参数已导出到 result/scaler_params.json
 ```
-### 4.3 **模型评估接口（python）**
+### 4.3 模型评估接口（python）
 `./kdadk_appid -e <config.yaml>`
-其中参数`<config.yaml>`为配置模型评估所需csv文件的yaml文件地址，该接口采用调用随机森林评估python文件运行的方式执行。`config.yaml`默认在`src/`目录下。
+其中参数`<config.yaml>`为配置模型评估所需csv文件的yaml文件地址，该接口采用调用随机森林评估python文件运行的方式执行。`config.yaml`默认在`src/`目录下。[config配置说明](#config配置)
 
 ```
 (base) [root@ceph1 output]# ./kdadk_appid -e ../src/config.yaml 
@@ -213,9 +219,9 @@ weighted avg     0.9953    0.9952    0.9952     26863
 2025-11-25 14:58:35,966 - INFO - Total samples: 26863
 2025-11-25 14:58:35,966 - INFO - Correct predictions: 26735/26863
 ```
-### 4.4 **模型评估接口（C++）**
+### 4.4 模型评估接口（C++）
 `./kdadk_appid -i <config.yaml>`
-其中参数`<config.yaml>`为配置模型推理所需csv文件的yaml文件地址，该接口采用随机森林模型C++推理方式执行。`config.yaml`默认在`src/`目录下。
+其中参数`<config.yaml>`为配置模型推理所需csv文件的yaml文件地址，该接口采用随机森林模型C++推理方式执行。`config.yaml`默认在`src/`目录下。[config配置说明](#config配置)
 
 ```
 (base) [root@ceph1 output]# ./kdadk_appid -i ../src/config.yaml 
@@ -243,6 +249,68 @@ ONNX推理：成功解析标签数量 = 26863
 推理完成！结果已保存到 result 目录
 Inference completed.
 ```
+<a id="config配置"></a>
+### 4.5 config配置
+- **`training_data_paths`**：**模型训练**数据输入，每一类数据置于一个数组中，不同数组代表不同类别，一类数据可以存放多个csv文件
+
+```
+training_data_paths:
+- [
+  'data/bilibili/csv/bilibili_20250616_204043_10h_android_16.csv',
+  'data/bilibili/csv/bilibili_20250716_101749_5h_android_18.csv',
+  'data/bilibili/csv/bilibili_20250717_191237_50400_android_17.csv',
+  'data/bilibili/csv/bilibili_20250718_101704_25200_android_19.csv'
+]
+- [
+  'data/wenxiaoyan/csv/wenxiaoyan_20250726_172552_129600_android_16.csv',
+  'data/wenxiaoyan/csv/wenxiaoyan_20250804_204806_144000_android_17.csv',
+  'data/wenxiaoyan/csv/wenxiaoyan_20250804_205024_144000_android_18.csv',
+  'data/wenxiaoyan/csv/wenxiaoyan_20250804_205029_144000_android_19.csv'
+]
+```
+- **`model_path_pkl`**：训练后的模型权重输出路径，同时也是模型评估（python）的输入路径
+
+```
+model_path_pkl: result/model_classifier_2.pkl
+```
+- **`scaler_path_pkl`**：训练后的标准化器权重输出路径，同时也是模型评估（python）的输入路径
+
+```
+scaler_path_pkl: result/scaler_2.pkl
+```
+- **`model_path_onnx`**：训练后的模型权重输出路径，同时也是模型评估（C++）的输入路径
+
+```
+model_path_onnx: result/model_classifier_2.onnx
+```
+- **`scaler_path_json`**：训练后的标准化器权重输出路径，同时也是模型评估（C++）的输入路径
+
+```
+scaler_path_json: result/scaler_2.json
+```
+- **`evaluation_data_paths`**：**模型评估**数据输入，每一类数据置于一个数组中，不同数组代表不同类别，一类数据可以存放多个csv文件
+
+```
+evaluation_data_paths:
+  - ['data/bilibili/csv/bilibili_20250721_141827_21600_android_20.csv']
+  - ['data/wenxiaoyan/csv/wenxiaoyan_20250804_205038_144000_android_20.csv']
+```
+- **`output_dir`**：模型评估结果输出文件夹
+
+```
+output_dir: result
+```
+- **`classification_report_file`**：流分类报告结果路径
+
+```
+classification_report_file: result/classification_report_2.txt
+```
+- **`predictions_detail_file`**：流分类详细结果路径
+
+```
+predictions_detail_file: result/predictions_detail_2.csv
+```
+❗**注：所有路径支持绝对路径和相对路径，推荐使用绝对路径，在使用相对路径时默认从当前仓库根目录下算起。**
 ## 5. 工具用法
 本仓库提供两个工具供用户使用：流量采集工具和流量打标签工具，位于`/tools/`，下面分别介绍用法。
 
@@ -257,9 +325,6 @@ Inference completed.
 `/tools/labeling/`
 有以下几个文件：
 - labeling.py                 -- 打标签工具，具体用法可以参考下述描述
-- config_label.yaml           -- 配置文件，可以配置打标签工具具体参数
-- results                     -- 打标签工具结果输出位置，可在配置文件中修改
-- output                      -- 聚类预测结果输出文件夹，可在配置文件中修改
 
 
 ```
@@ -280,5 +345,52 @@ options:
   python labeling.py --mode inference                # 使用默认配置文件推理，默认使用每个文件夹下的一个csv文件
   python labeling.py --mode train --config ./config_label.yaml  # 指定配置文件
 ```
+
+- config_label.yaml           -- 配置文件，可以配置打标签工具具体参数
+
+```
+# 流量打标签工具训练配置
+train:
+  # 参与训练的数据，每个路径下可以有多个特征提取csv文件，同时支持字典模式，可以配置path和name
+  data_paths: [
+    '/home/l00934292/appid_data/youku/csv',
+    '/home/l00934292/appid_data/yuanbao/csv',
+    '/home/l00934292/appid_data/wymusic/csv'
+  ]
+  #   data_paths: [
+  #     {'path': 'data/youku/csv', 'name': 'video'},
+  #     {'path': 'data/yuanbao/csv', 'name': 'text'},
+  #     {'path': 'data/wymusic/csv', 'name': 'music'}
+  # ]
+  # 当前训练模型权重名
+  model_name: "labeling_train"
+  # 当前数据集训练聚类数量，限定聚类数大于1  
+  n_clusters: 3
+  # 数据集划分 30%用来测试，70%用来训练，输入范围为(0,1)
+  test_size: 0.3
+  # 输出结果保存位置，输出文件有模型权重及标准化器权重
+  results_dir: results        
+
+# 流量打标签工具推理配置
+inference:
+  # 参与推理的数据，每个路径下可以有多个特征提取csv文件，同时支持字典模式，可以配置path和name
+  data_paths: [
+    '/home/l00934292/appid_data/youku/csv',
+    '/home/l00934292/appid_data/yuanbao/csv',
+    '/home/l00934292/appid_data/wymusic/csv'
+  ]
+  # 加载预训练模型权重路径
+  model_path: "results/labeling_train_model.pkl"
+  # 当前加载预训练标准化器权重路径  
+  scaler_path: "results/labeling_train_scaler.pkl"
+  # 输出结果保存位置
+  output_file: "output/output.csv"  
+```
+- results                     -- 打标签工具结果输出位置，可在配置文件中修改
+- output                      -- 聚类预测结果输出文件夹，可在配置文件中修改
+
+
+- **注：在inference推理时限定只输入一个csv特征文件，用户可以根据自己的需要来修改inferenceing源码中的`inference=False`入参来取消这一限定。**
+
 ##  6. 其他事项
 如果使用过程中有任何问题，或者需要反馈特性需求和bug报告，可以提交issues联系我们，具体贡献方法可参考[这里](https://gitcode.com/boostkit/community/blob/master/docs/contributor/contributing.md)。
