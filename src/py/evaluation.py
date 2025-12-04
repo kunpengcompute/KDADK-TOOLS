@@ -35,24 +35,29 @@ def _load_and_concat(file_paths: List[str]):
         try:
             df = pd.read_csv(resolve_path(file_path))
             dfs.append(df)
-        except FileNotFoundError as e:
-            raise FileNotFoundError(f"{file_path} file not found ") from e
-        except PermissionError as e:
-            raise PermissionError(f"No permission to load {file_path}. Please check the file permissions.") from e
-        except pd.errors.EmptyDataError as e:
-            raise pd.errors.EmptyDataError(f"Error: File '{file_path}' is empty.") from e
+        except FileNotFoundError:
+            logging.warning(f"{file_path} file not found. Skipping this file.")
+            continue
+        except PermissionError:
+            logging.warning(f"No permission to load {file_path}. Skipping this file.")
+            continue
+        except pd.errors.EmptyDataError:
+            logging.warning(f"File '{file_path}' is empty. Skipping this file.")
+            continue
         except Exception as e:
-            raise RuntimeError(f"Error occurred while reading the csv file {file_path}.") from e
+            logging.warning(f"Error occurred while reading {file_path}: {str(e)}. Skipping this file.")
+            continue
+    if not dfs:
+        raise RuntimeError("Error: No data was successfully loaded from any of the provided CSV files.")
+
     return pd.concat(dfs, axis=0, ignore_index=True)
 
 
-def load_and_prepare_data(data_paths: List[List[str]], labels: List[int], scaler_path: str):
+def load_and_prepare_data(data_paths: List[List[str]], scaler_path: str):
     """
      Load and prepare the data, and add labels to the dataset.
     """
-    if len(data_paths) != len(labels):
-        raise ValueError("data_paths and labels must have the same length")
-
+    labels = [i for i in range(len(data_paths))]
     all_data = []
     for paths, label in zip(data_paths, labels):
         class_data = _load_and_concat(paths)
@@ -77,9 +82,9 @@ def load_and_prepare_data(data_paths: List[List[str]], labels: List[int], scaler
         scaler = joblib.load(scaler_path)
         X_scaled = scaler.transform(X)
     except FileNotFoundError as e:
-        raise FileNotFoundError("scaler.pkl file not found") from e
+        raise FileNotFoundError(f"{scaler_path} file not found") from e
     except PermissionError as e:
-        raise PermissionError("No permission to load the scaler.pkl file. Please check the file permissions.") from e
+        raise PermissionError(f"No permission to load the {scaler_path} file. Please check the file permissions.") from e
     except Exception as e:
         raise RuntimeError(f"Error occurred while standardizing data.") from e
 
@@ -145,7 +150,7 @@ def predict_new_data(params):
         
         logging.info(f"Classification report saved to: {report_output_path}")
     except Exception as e:
-        logging.error(f"Error: Failed to save classification report - {str(e)}")
+        logging.error(f"Failed to save classification report - {str(e)}")
     
     # Save prediction results to csv file
     try:
@@ -177,7 +182,7 @@ def predict_new_data(params):
         logging.info(f"Correct predictions: {correct_predictions}/{total_predictions}")
         
     except Exception as e:
-        logging.error(f"Error: Failed to save prediction results - {str(e)}")
+        logging.error(f"Failed to save prediction results - {str(e)}")
 
 
 def KDADK_Evaluation(config_file):
@@ -187,7 +192,6 @@ def KDADK_Evaluation(config_file):
         with open(config_file, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
         data_paths = config['evaluation_data_paths']
-        labels = config['evaluation_labels']
         anomaly_detect_switch = 0
         anomaly_detect_limit = 0
         
@@ -197,41 +201,38 @@ def KDADK_Evaluation(config_file):
         model_path = resolve_path(config['model_path_pkl'])
         scaler_path = resolve_path(config['scaler_path_pkl'])
 
-    except FileNotFoundError:
-        logging.error("Error: The configuration file config.yaml does not exist. Please check the file path.")
-        return
     except PermissionError:
-        logging.error("Error: No permission to read the config.yaml file. Please check the file permissions.")
-        return
+        logging.error(f"No permission to read the {config_file} file. Please check the file permissions.")
+        return -1
     except yaml.YAMLError:
         logging.error("The YAML file format is incorrect.")
-        return
+        return -1
     except KeyError as e:
-        logging.error(f"Error: Missing necessary configuration items - {str(e)}")
-        return
+        logging.error(f"Missing necessary configuration items - {str(e)}")
+        return -1
     except Exception as e:
-        logging.error(f"Error: An unexpected error occurred while reading the configuration file. - {str(e)}")
-        return
+        logging.error(f"An unexpected error occurred while reading the configuration file. - {str(e)}")
+        return -1
 
     if (not isinstance(anomaly_detect_switch, int)) or (not isinstance(anomaly_detect_limit, (int, float))):
-        logging.error("Error: anomaly detect config must be digital")
-        return
+        logging.error("anomaly detect config must be digital")
+        return -1
 
     # Load and prepare test data
-    X_scaled, y, X_original, raw_bow = load_and_prepare_data(data_paths, labels, scaler_path)
+    X_scaled, y, X_original, raw_bow = load_and_prepare_data(data_paths, scaler_path)
     
     # Load Model
     try:
         rf_model = joblib.load(model_path)
     except FileNotFoundError:
-        logging.error("Error: random_forest_classifier.pkl file not found")
-        return
+        logging.error(f"{model_path} file not found")
+        return -1
     except PermissionError:
-        logging.error("Error: No permission to load the random_forest_classifier.pkl file. Please check the file permissions.")
-        return
+        logging.error(f"No permission to load the {model_path} file. Please check the file permissions.")
+        return -1
     except Exception as e:
-        logging.error(f"Error: An unexpected error occurred while loading the random forest model. - {str(e)}")
-        return
+        logging.error(f"An unexpected error occurred while loading the random forest model. - {str(e)}")
+        return -1
 
     params = {
         'model': rf_model,
@@ -247,9 +248,13 @@ def KDADK_Evaluation(config_file):
 
     predict_new_data(params)
 
+    return 0
+
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        logging.info("Usage: python3 training.py <path_to_config>")
+        logging.info("Usage: python3 evaluation.py <path_to_config>")
         sys.exit(1)
     config_file = sys.argv[1]
-    KDADK_Evaluation(config_file)
+    res = KDADK_Evaluation(config_file)
+    if res == -1:
+        print("Error: Inference failed.")

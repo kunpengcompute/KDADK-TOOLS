@@ -46,23 +46,29 @@ def _load_and_concat(file_paths: List[str]):
         try:
             df = pd.read_csv(resolve_path(file_path))
             dfs.append(df)
-        except FileNotFoundError as e:
-            raise FileNotFoundError(f"{file_path} file not found ") from e
-        except PermissionError as e:
-            raise PermissionError(f"No permission to load {file_path}. Please check the file permissions.") from e
-        except pd.errors.EmptyDataError as e:
-            raise pd.errors.EmptyDataError(f"Error: File '{file_path}' is empty.") from e
+        except FileNotFoundError:
+            logging.warning(f"{file_path} file not found. Skipping this file.")
+            continue
+        except PermissionError:
+            logging.warning(f"No permission to load {file_path}. Skipping this file.")
+            continue
+        except pd.errors.EmptyDataError:
+            logging.warning(f"File '{file_path}' is empty. Skipping this file.")
+            continue
         except Exception as e:
-            raise RuntimeError(f"Error occurred while reading the csv file {file_path}.") from e
-    return pd.concat(dfs, axis=0, ignore_index=True)  
+            logging.warning(f"Error occurred while reading {file_path}: {str(e)}. Skipping this file.")
+            continue
+    if not dfs:
+        raise RuntimeError("Error: No data was successfully loaded from any of the provided CSV files.")
+
+    return pd.concat(dfs, axis=0, ignore_index=True)
 
 
-def load_and_prepare_data(data_paths: List[List[str]], labels: List[int]):
+def load_and_prepare_data(data_paths: List[List[str]]):
     """
      Load and prepare the data, and add labels to the dataset.
     """
-    if len(data_paths) != len(labels):
-        raise ValueError("data_paths and labels must have the same length")
+    labels = [i for i in range(len(data_paths))]
 
     all_data = []
     for paths, label in zip(data_paths, labels):
@@ -133,24 +139,20 @@ def KDADK_Train(config_file):
         with open(config_file, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
         data_paths = config['training_data_paths']
-        labels = config['training_labels']
-    except FileNotFoundError:
-        logging.error("Error: The configuration file config.yaml does not exist. Please check the file path.")
-        return
     except PermissionError:
-        logging.error("Error: No permission to read the config.yaml file. Please check the file permissions.")
+        logging.error("No permission to read the config.yaml file. Please check the file permissions.")
         return
     except yaml.YAMLError:
-        logging.error("Error: The YAML file format is incorrect.")
+        logging.error("The YAML file format is incorrect.")
         return
     except KeyError as e:
-        logging.error(f"Error: Missing necessary configuration items - {str(e)}")
+        logging.error(f"Missing necessary configuration items - {str(e)}")
         return
     except Exception as e:
-        logging.error(f"Error: An unexpected error occurred while reading the configuration file. - {str(e)}")
+        logging.error(f"An unexpected error occurred while reading the configuration file. - {str(e)}")
         return
 
-    X, y = load_and_prepare_data(data_paths, labels)
+    X, y = load_and_prepare_data(data_paths)
     logging.info("Start training the model...")
     rf_model, scaler = train_random_forest(X, y)
 
@@ -163,13 +165,13 @@ def KDADK_Train(config_file):
     try:
         joblib.dump(rf_model, model_path_pkl)
     except PermissionError:
-        logging.error("Error: No permission to dump the model_classifier.pkl. Please check the file permissions.")
+        logging.error("No permission to dump the model_classifier.pkl. Please check the file permissions.")
         return
     except IOError as e:
-        logging.error(f"IO Error: {str(e)}")
+        logging.error(f"{str(e)}")
         return
     except Exception as e:
-        logging.error(f"Error: An unexpected error occurred while saving the model. {str(e)}")
+        logging.error(f"An unexpected error occurred while saving the model. {str(e)}")
         return
 
     logging.info(f"Model saved as {model_path_pkl}")
