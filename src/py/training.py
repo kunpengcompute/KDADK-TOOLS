@@ -59,7 +59,7 @@ def _load_and_concat(file_paths: List[str]):
             logging.warning(f"Error occurred while reading {file_path}: {str(e)}. Skipping this file.")
             continue
     if not dfs:
-        raise RuntimeError("Error: No data was successfully loaded from any of the provided CSV files.")
+        raise ValueError("No data was successfully loaded from any of the provided CSV files.")
 
     return pd.concat(dfs, axis=0, ignore_index=True)
 

@@ -92,11 +92,11 @@ def load_data(target_files, inference=False):
         try:
             df = pd.read_csv(file_path)
             dfs.append(df)
-            logging.info(f"  已加载: {os.path.basename(file_path)}")
+            logging.info(f"已加载: {os.path.basename(file_path)}")
             if inference:
                 break  # 推理模式下只加载一个文件
         except Exception as e:
-            logging.error(f"  加载文件 {os.path.basename(file_path)} 时出错: {str(e)}")
+            logging.error(f"加载文件 {os.path.basename(file_path)} 时出错: {str(e)}")
 
     if not dfs:
         raise ValueError("没有任何数据被成功加载")
