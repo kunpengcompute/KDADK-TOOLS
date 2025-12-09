@@ -227,7 +227,7 @@ weighted avg     0.9953    0.9952    0.9952     26863
 (base) [root@ceph1 output]# ./kdadk_appid -i ../src/config.yaml 
 Running inference with: ../src/config.yaml
 正在加载配置文件...
-加载标准化器参数: /home/l00934292/KDADK-TOOLS/result/scaler_params.json
+加载标准化器参数: result/scaler_params.json
 加载标准化器参数成功，特征数量: 351
 加载和准备数据...
 提示: 文件 data/bilibili/csv/bilibili_20250721_141827_21600_android_20.csv 所有数据行均有效

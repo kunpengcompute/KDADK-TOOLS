@@ -1,3 +1,3 @@
 - capture_win.ps1           windows环境下使用wireshark来抓包，确保使用前安装wireshark，具体用法可以参考 ./capture_win.ps1 -h
-- capture_linux.sh          linux环境下使用tcpdump来抓包，确保使用前安装tcpdump，具体用法可以参考 ./capture_linux.sh -h
-- capture_linux_docker.sh   linux环境下在docker容器中使用tcpdump来抓包，确保docker环境正确，具体用法可以参考 ./capture_linux_docker.sh -h
+- capture_linux.sh          linux环境下使用tcpdump来抓包，确保使用前安装tcpdump，具体用法可以参考 ./capture_linux.sh -h 或者 sh capture_linux.sh -h
+- capture_linux_docker.sh   linux环境下在docker容器中使用tcpdump来抓包，确保docker环境正确，具体用法可以参考 ./capture_linux_docker.sh -h 或者 sh capture_linux_docker.sh -h

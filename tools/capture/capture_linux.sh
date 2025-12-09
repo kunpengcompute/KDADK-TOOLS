@@ -67,44 +67,70 @@ test_tcpdump() {
     fi
 }
 
+get_interfaces_list() {
+    # 优先使用 /sys/class/net（最可靠）
+    if [ -d /sys/class/net ]; then
+        ls /sys/class/net
+    elif command -v ip >/dev/null 2>&1; then
+        ip link show | grep -E "^[0-9]+:" | cut -d: -f2 | sed 's/^ *//' | awk '{print $1}'
+    elif command -v ifconfig >/dev/null 2>&1; then
+        ifconfig -a | grep -E "^[a-zA-Z0-9]+" | cut -d: -f1 | awk '{print $1}'
+    fi
+}
+
 # 显示所有网络接口
 show_interfaces() {
     echo "可用的网络接口:"
-    if command -v ip >/dev/null 2>&1; then
-        ip link show | grep -E "^[0-9]+:" | cut -d: -f2 | sed 's/^ *//' | while read iface; do
-            echo "  $iface"
-        done
-    elif command -v ifconfig >/dev/null 2>&1; then
-        ifconfig -a | grep -E "^[a-zA-Z0-9]+" | cut -d: -f1 | while read iface; do
-            echo "  $iface"
-        done
-    else
-        echo "  无法获取接口列表，请手动指定接口名称"
-    fi
+    get_interfaces_list | while read -r iface; do
+        local status=""
+        if [ -f "/sys/class/net/$iface/operstate" ]; then
+            status=" [$(cat /sys/class/net/$iface/operstate 2>/dev/null)]"
+        fi
+        echo "  $iface$status"
+    done
+}
+
+interface_exists() {
+    local iface="$1"
+    [ -d "/sys/class/net/$iface" ] || \
+    ip link show "$iface" >/dev/null 2>&1 || \
+    ifconfig "$iface" >/dev/null 2>&1
 }
 
 # 获取默认网络接口
 get_default_interface() {
     if command -v ip >/dev/null 2>&1; then
         ip route | grep default | head -1 | sed 's/.*dev \([^ ]*\).*/\1/'
-    elif command -v route >/dev/null 2>&1; then
-        route | grep default | head -1 | awk '{print $8}'
     else
-        echo "eth0"  # fallback
+        # 返回第一个非 lo 接口
+        for iface in /sys/class/net/*; do
+            iface=$(basename "$iface")
+            [ "$iface" != "lo" ] && echo "$iface" && return
+        done
+        echo "lo"
     fi
 }
 
 # 验证接口名称（防止命令注入）
 validate_interface() {
     local iface="$1"
-    # 只允许字母、数字、点、冒号、连字符和下划线
-    if [[ "$iface" =~ ^[a-zA-Z0-9._:-]+$ ]]; then
-        return 0
-    else
-        echo "错误: 接口名称包含非法字符: $iface"
-        echo "接口名称只能包含字母、数字、点、冒号、连字符和下划线"
+    
+    # 验证格式（防止命令注入）
+    if ! [[ "$iface" =~ ^[a-zA-Z0-9._:-]+$ ]]; then
+        echo "错误: 接口名称 '$iface' 包含非法字符" >&2
+        echo "接口名称只能包含字母、数字、点、冒号、连字符和下划线" >&2
         return 1
     fi
+    
+    # 检查接口是否存在
+    if ! interface_exists "$iface"; then
+        echo "错误: 网络接口 '$iface' 不存在" >&2
+        echo "" >&2
+        show_interfaces >&2
+        return 1
+    fi
+    
+    return 0
 }
 
 # 验证BPF过滤器（基本验证）
@@ -229,8 +255,8 @@ if ! [[ "$DURATION" =~ ^[0-9]+$ ]] || [ "$DURATION" -le 0 ]; then
 fi
 
 # 验证文件名前缀（防止路径遍历）
-if [[ "$NAME" =~ [/\\] ]]; then
-    echo "错误: 文件名前缀不能包含路径分隔符"
+if ! [[ "$NAME" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    echo "错误: 文件名只能包含字母、数字、下划线和连字符" >&2
     exit 1
 fi
 

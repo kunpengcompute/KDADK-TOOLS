@@ -34,21 +34,27 @@ param(
 )
 
 function Show-Help {
-    $helpText = "用法: .\capture_tshark.ps1 [参数]`n`n"
-    $helpText += "参数:`n"
-    $helpText += "    -d, -Duration         抓包持续时间（秒，默认：30）`n"
-    $helpText += "    -n, -Name             输出文件名前缀（默认：capture）`n"
-    $helpText += "    -i, -Interface        网络接口编号（默认：1）`n"
-    $helpText += "    -f, -Filter           BPF过滤条件`n"
-    $helpText += "    -l, -ListInterfaces   列出所有网络接口`n"
-    $helpText += "    -Help                 显示帮助信息`n`n"
-    $helpText += "示例:`n"
-    $helpText += "    .\capture_tshark.ps1 -d 30 -n bilibili`n"
-    $helpText += "    .\capture_tshark.ps1 -d 60 -i 2 -f `"port 443`"`n"
-    $helpText += "    .\capture_tshark.ps1 -l`n"
-    $helpText += "    .\capture_tshark.ps1 -Help`n"
-    
-    Write-Host $helpText
+    Write-Host @"
+用法: .\capture_win.ps1 [参数]
+
+参数:
+    -d, -Duration         抓包持续时间（秒，默认：30）
+    -n, -Name             输出文件名前缀（默认：capture）
+    -i, -Interface        网络接口编号（默认：1）
+    -f, -Filter           BPF过滤条件
+    -l, -ListInterfaces   列出所有网络接口
+    -Help                 显示帮助信息
+
+示例:
+    .\capture_win.ps1 -d 30 -n bilibili
+    .\capture_win.ps1 -d 60 -i 2 -f "port 443"
+    .\capture_win.ps1 -l
+    .\capture_win.ps1 -Help
+
+说明:
+    - 文件名只能包含字母、数字、下划线和连字符
+    - 网络接口编号必须是有效的接口ID（使用 -l 查看）
+"@
 }
 
 function Test-TsharkPath {
@@ -71,25 +77,32 @@ function Test-TsharkPath {
     }
 }
 
-function Show-Interfaces {
-    $tsharkPath = Test-TsharkPath
-    if ($tsharkPath) {
-        Write-Host "可用的网络接口:"
-        & $tsharkPath -D
+function Get-ValidInterfaces {
+    param([string]$TsharkPath)
+    
+    $output = & $TsharkPath -D 2>&1
+    $interfaces = @()
+    
+    foreach ($line in $output) {
+        if ($line -match '^(\d+)\.') {
+            $interfaces += $matches[1]
+        }
     }
-    else {
-        Write-Error "未找到tshark，请安装Wireshark"
-    }
+    
+    return $interfaces
 }
 
-# 处理帮助和接口列表
+function Show-Interfaces {
+    param([string]$TsharkPath)
+    
+    Write-Host "========== 可用的网络接口 =========="
+    & $TsharkPath -D
+    Write-Host "===================================="
+}
+
+# 处理帮助
 if ($Help) {
     Show-Help
-    exit 0
-}
-
-if ($ListInterfaces) {
-    Show-Interfaces
     exit 0
 }
 
@@ -100,9 +113,41 @@ if (-not $tsharkPath) {
     exit 1
 }
 
-# 参数验证
+# 处理接口列表
+if ($ListInterfaces) {
+    Show-Interfaces -TsharkPath $tsharkPath
+    exit 0
+}
+
+# 验证持续时间
 if ($Duration -le 0) {
     Write-Error "错误: 持续时间必须是正整数"
+    exit 1
+}
+
+# 验证文件名
+if ($Name -notmatch '^[a-zA-Z0-9_-]+$') {
+    Write-Error "错误: 文件名只能包含字母、数字、下划线和连字符"
+    exit 1
+}
+
+# 验证网络接口
+$validInterfaces = Get-ValidInterfaces -TsharkPath $tsharkPath
+if ($validInterfaces.Count -eq 0) {
+    Write-Error "错误: 无法获取网络接口列表"
+    exit 1
+}
+
+if ($Interface -notmatch '^\d+$') {
+    Write-Error "错误: 网络接口必须是数字"
+    Write-Host "使用 -l 查看可用的网络接口"
+    exit 1
+}
+
+if ($validInterfaces -notcontains $Interface) {
+    Write-Error "错误: 网络接口 '$Interface' 不存在"
+    Write-Host "`n可用的网络接口:"
+    Show-Interfaces -TsharkPath $tsharkPath
     exit 1
 }
 
@@ -129,15 +174,13 @@ if ($Filter) {
 }
 Write-Host "=============================="
 
-# 执行抓包 - 使用 & 操作符而不是 Invoke-Expression
+# 执行抓包
 Write-Host "开始抓包..."
 try {
     if ($Filter) {
-        Write-Host "执行命令: tshark -i $Interface -a duration:$Duration -w `"$outputfile`" -f `"$Filter`""
         & $tsharkPath -i $Interface -a "duration:$Duration" -w $outputfile -f $Filter
     }
     else {
-        Write-Host "执行命令: tshark -i $Interface -a duration:$Duration -w `"$outputfile`""
         & $tsharkPath -i $Interface -a "duration:$Duration" -w $outputfile
     }
     
