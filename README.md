@@ -11,12 +11,13 @@ KDADK-TOOLS是鲲鹏数据分析开发套件的网络流分类库，包含流汇
 | 1.0.1  | 鲲鹏数据分析开发套件的网络流分类库 |
 
 ## 3. 环境部署
-KDADK-TOOLS当前适配的处理器和操作系统为鲲鹏920新型号处理器，openEuler 22.03操作系统，若您在使用过程中遇到问题，请先检查使用的环境是否在已验证的环境范围内。
+KDADK-TOOLS当前适配的处理器和操作系统为鲲鹏920新型号处理器，openEuler操作系统，若您在使用过程中遇到问题，请先检查使用的环境是否在已验证的环境范围内。
 
 **表2** KDADK-TOOLS已验证环境
 | 操作系统  | CPU类型  |
 | ------------ | ------------ |
 | openEuler 22.03 LTS SP4  | 鲲鹏920新型号处理器  |
+| openEuler 24.03 LTS SP2  | 鲲鹏920新型号处理器  |
 
 **表3** 软件要求
 | 软件名称| 版本 |
@@ -258,11 +259,11 @@ int main(int argc, char *argv[]) {
 ```
 g++ inference.cpp -o inference -I./include -L./ -lonnxInference
 ```
-执行编译生成的二进制，进行协议解析及特征提取。
+执行编译生成的二进制，进行特征推理。
 
 ```
 [root@localhost]# ./inference src/config.yaml
-开始提取特征: src/config.yaml
+开始推理: src/config.yaml
 正在加载配置文件...
 加载标准化器参数: result/scaler_params_2.json
 加载标准化器参数成功，特征数量: 351
@@ -282,7 +283,7 @@ ONNX推理：成功解析标签数量 = 9840
 详细预测结果已保存到: result/predictions_detail_2.csv
 
 推理完成！结果已保存到 result 目录
-特征提取成功
+推理成功
 ```
 
 ## 5. 使用说明
@@ -365,11 +366,11 @@ Training model with: src/config.yaml
 111       send_interval_mean    0.011128
 236   receive_pld_hist_abs_1    0.010101
 218          receive_pld_var    0.009542
-结果保存路径: result
+2025-11-25 14:56:50,363 - INFO - 结果保存路径: result
 2025-11-25 14:56:51,363 - INFO - Model saved as result/model_classifier.pkl
 2025-11-25 14:56:52,840 - INFO - Model saved as result/model_classifier.onnx
 2025-11-25 14:56:52,843 - INFO - Scaler saved as result/scaler.pkl
-StandardScaler 参数已导出到 result/scaler_params.json
+2025-11-25 14:56:53,363 - INFO - StandardScaler 参数已导出到 result/scaler_params.json
 ```
 ### 5.3 模型评估接口（python）
 `./kdadk_appid -e <config.yaml>`
@@ -491,6 +492,16 @@ classification_report_file: result/classification_report_2.txt
 
 ```
 predictions_detail_file: result/predictions_detail_2.csv
+```
+- **`onnx_log_level`**：ONNX运行时配置。
+
+```
+onnx_log_level: WARNING
+# VERBOSE   详细信息
+# INFO      一般信息
+# WARNING   警告
+# ERROR     错误
+# FATAL     致命错误
 ```
 ❗**注：所有路径支持绝对路径和相对路径，推荐使用绝对路径，在使用相对路径时默认从当前仓库根目录下算起。**
 ## 6. 工具用法
