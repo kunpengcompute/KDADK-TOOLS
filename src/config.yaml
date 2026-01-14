@@ -25,10 +25,6 @@ output_dir: result
 classification_report_file: result/classification_report_2.txt
 predictions_detail_file: result/predictions_detail_2.csv
 
-# ONNX运行时配置onnx_log_level
-# VERBOSE   详细信息
-# INFO      一般信息
-# WARNING   警告
-# ERROR     错误
-# FATAL     致命错误
 onnx_log_level: WARNING
+columns_to_remove: [0, 1, 2]
+filter_packets: 16
