@@ -1,3 +1,6 @@
+/*
+Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+ */
 #include "kdadk_type.h"
 
 double get_time_in_seconds();

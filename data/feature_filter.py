@@ -72,6 +72,10 @@ def validate_column_indices(columns_to_remove, max_columns=None):
     return True
 
 def remove_columns_from_csv(csv_files, columns_to_remove):
+    if not columns_to_remove:
+        print("columns_to_remove 为空，跳过列删除操作")
+        return
+
     try:
         validate_column_indices(columns_to_remove)
     except ValueError as e:
@@ -111,33 +115,56 @@ if __name__ == "__main__":
         print("Usage: python3 feature_filter.py <path_to_config>")
         sys.exit(1)
     config_file = sys.argv[1]
+    
     try:
         with open(config_file, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
         
-        if not isinstance(config.get('columns_to_remove'), list):
-            raise ValueError("columns_to_remove must be a list.")
+        # 处理 columns_to_remove 字段（可选，默认为空列表）
+        if 'columns_to_remove' in config:
+            columns_to_remove = config['columns_to_remove']
+            # 字段存在时进行严格验证
+            if not isinstance(columns_to_remove, list):
+                raise ValueError("columns_to_remove must be a list.")
+        else:
+            # 字段缺失时使用默认值
+            columns_to_remove = []
+            print("配置文件中未找到 'columns_to_remove' 字段，使用默认值: []")
         
-        if not isinstance(config.get('filter_packets'), int) or config['filter_packets'] < 0:
-            raise ValueError("filter_packets must be a non-negative integer.")
-        
-        columns_to_remove = config['columns_to_remove']
-        filter_packets = config['filter_packets']
+        # 处理 filter_packets 字段（可选，默认为 0）
+        if 'filter_packets' in config:
+            filter_packets = config['filter_packets']
+            # 字段存在时进行严格验证
+            if not isinstance(filter_packets, int) or filter_packets < 0:
+                raise ValueError("filter_packets must be a non-negative integer.")
+        else:
+            # 字段缺失时使用默认值
+            filter_packets = 0
+            print("配置文件中未找到 'filter_packets' 字段，使用默认值: 0")
         
     except PermissionError:
         raise PermissionError("No permission to read the config.yaml file. Please check the file permissions.")
     except yaml.YAMLError:
         raise yaml.YAMLError("The YAML file format is incorrect.")
-    except KeyError as e:
-        raise KeyError(f"Missing necessary configuration items - {str(e)}") from None
     except ValueError as e:
         raise ValueError(f"Configuration value error - {str(e)}") from None
     except Exception as e:
         raise Exception(f"An unexpected error occurred while reading the configuration file. - {str(e)}") from None
 
     csv_files = get_current_csvs(current_dir="/home/l00934292/appid_data_bak")
-    print(f"过滤packets: {filter_packets}")
-    filter_csv_files_by_packets(csv_files, filter_packets)
-    print(f"过滤columns: {columns_to_remove}")
-    remove_columns_from_csv(csv_files, columns_to_remove)
+    
+    # 只有当 filter_packets > 0 时才执行过滤
+    if filter_packets > 0:
+        print(f"过滤packets: {filter_packets}")
+        filter_csv_files_by_packets(csv_files, filter_packets)
+    else:
+        print(f"filter_packets 为 {filter_packets}，跳过 packets 过滤操作")
+    
+    # 只有当 columns_to_remove 非空时才执行列删除
+    if columns_to_remove:
+        print(f"过滤columns: {columns_to_remove}")
+        remove_columns_from_csv(csv_files, columns_to_remove)
+    else:
+        print("columns_to_remove 为空，跳过 columns 过滤操作")
+    
     print("所有文件处理完成")

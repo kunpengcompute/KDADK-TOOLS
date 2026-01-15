@@ -1,8 +1,23 @@
+/*
+Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+ */
 
 #include "kdadk_type.h"
 #include "kdadk_inference.h"
 #include "kdadk_file_writer.h"
 #include "online_inference.h"
+
+typedef struct {
+    char *config_file;
+    char **pcap_files;
+    int num_pcap_files;
+    char *interface;
+    char *output_file;
+    file_format output_format;  // 输出文件格式: FILE_FORMAT_CSV 或 FILE_FORMAT_JSON
+    int mode;                   // 0:单flow, 1:批处理, 2:文件模式
+    int operation;              // 0:训练, 1:验证, 2:特征提取, 3:在线推理
+    int with_rawbow;            // 是否输出rawbow (0:不输出, 1:输出)
+} CommandLineArgs;
 
 int feature_extraction_mode(const char *pcap_file, const char *output_file, int with_rawbow)
 {
@@ -158,29 +173,6 @@ int feature_extraction_mode(const char *pcap_file, const char *output_file, int 
     return 0;
 }
 
-/* ========== 命令行参数解析 ========== */
-void print_usage(const char *prog_name)
-{
-    printf("用法: %s [选项]\n", prog_name);
-    printf("\n选项:\n");
-    printf("  -t <config.yaml>        模型训练模式\n");
-    printf("  -e <config.yaml>        模型验证模式\n");
-    printf("  -f <file.pcap>          特征提取模式 (需要配合 -o 使用)\n");
-    printf("  -r <config.yaml>        在线推理模式 (需要配合 -o 使用)\n");
-    printf("  -p <file.pcap>          输入PCAP文件 (可多个)\n");
-    printf("  -i <interface>          网口实时抓包\n");
-    printf("  -m <mode>               推理模式: 0=单flow, 1=批处理, 2=文件 (默认: 1)\n");
-    printf("  -o <output>             输出文件路径 (必需，当使用 -f 或 -r 时)\n");
-    printf("  -w                      输出是否带有rawbow (仅用于 -f 特征提取模式)\n");
-    printf("  -l                      列出当前机器可用网口\n");
-    printf("  -h                      显示帮助信息\n");
-    printf("\n示例:\n");
-    printf("  %s -f input.pcap -o output.csv\n", prog_name);
-    printf("  %s -f input.pcap -o output.csv -w\n", prog_name);
-    printf("  %s -r config.yaml -p file1.pcap -p file2.pcap -m 1 -o result.csv\n", prog_name);
-    printf("  %s -r config.yaml -i eth0\n", prog_name);
-}
-
 void listNetworkDevices()
 {
     char errbuf[PCAP_ERRBUF_SIZE];
@@ -290,6 +282,61 @@ int run_python(const std::string &script, const char *config)
     return 0;
 }
 
+void print_usage(const char *prog_name)
+{
+    printf("用法: %s [选项]\n", prog_name);
+    printf("\n选项:\n");
+    printf("  -t <config.yaml>        模型训练模式\n");
+    printf("  -e <config.yaml>        模型验证模式\n");
+    printf("  -f <file.pcap>          特征提取模式 (需要配合 -c 或 -j 使用)\n");
+    printf("  -r <config.yaml>        在线推理模式 (需要配合 -c 或 -j 使用)\n");
+    printf("  -p <file.pcap>          输入PCAP文件 (可多个)\n");
+    printf("  -i <interface>          网口实时抓包\n");
+    printf("  -m <mode>               推理模式: 0=单flow, 1=批处理, 2=文件 (默认: 1)\n");
+    printf("  -c <output.csv>         输出CSV文件路径 (与 -j 互斥)\n");
+    printf("  -j <output.json>        输出JSON文件路径 (与 -c 互斥)\n");
+    printf("  -w                      输出是否带有rawbow (仅用于 -f 特征提取模式)\n");
+    printf("  -l                      列出当前机器可用网口\n");
+    printf("  -h                      显示帮助信息\n");
+    printf("\n说明:\n");
+    printf("  -c 和 -j 选项只能选择其中一个，分别指定CSV或JSON格式的输出文件\n");
+    printf("  -c 选项的文件必须以 .csv 结尾\n");
+    printf("  -j 选项的文件必须以 .json 结尾\n");
+    printf("\n示例:\n");
+    printf("  # 特征提取 - CSV格式\n");
+    printf("  %s -f input.pcap -c output.csv\n", prog_name);
+    printf("\n");
+    printf("  # 特征提取 - JSON格式，带rawbow\n");
+    printf("  %s -f input.pcap -j output.json -w\n", prog_name);
+    printf("\n");
+    printf("  # 在线推理 - 多个PCAP文件，输出CSV\n");
+    printf("  %s -r config.yaml -p file1.pcap -p file2.pcap -m 1 -c result.csv\n", prog_name);
+    printf("\n");
+    printf("  # 在线推理 - 网口实时抓包，输出JSON\n");
+    printf("  %s -r config.yaml -i eth0 -j result.json\n", prog_name);
+    printf("\n");
+    printf("  # 列出可用网口\n");
+    printf("  %s -l\n", prog_name);
+}
+
+static int check_file_extension(const char *filename, const char *ext)
+{
+    if (!filename || !ext) {
+        return 0;
+    }
+
+    size_t filename_len = strlen(filename);
+    size_t ext_len = strlen(ext);
+
+    if (filename_len < ext_len) {
+        return 0;
+    }
+
+    // 比较文件名末尾是否与扩展名匹配（不区分大小写）
+    const char *file_ext = filename + filename_len - ext_len;
+    return strcasecmp(file_ext, ext) == 0;
+}
+
 int parse_args(int argc, char *argv[], CommandLineArgs *args)
 {
     memset(args, 0, sizeof(CommandLineArgs));
@@ -300,7 +347,10 @@ int parse_args(int argc, char *argv[], CommandLineArgs *args)
     int pcap_capacity = 10;
     args->pcap_files = (char **)malloc(pcap_capacity * sizeof(char *));
 
-    while ((opt = getopt(argc, argv, "t:e:f:r:p:i:m:o:wlh")) != -1) {
+    int csv_specified = 0;  // 标记是否指定了 -c
+    int json_specified = 0; // 标记是否指定了 -j
+
+    while ((opt = getopt(argc, argv, "t:e:f:r:p:i:m:c:j:wlh")) != -1) {
         switch (opt) {
             case 't':
                 args->operation = 0;
@@ -339,8 +389,37 @@ int parse_args(int argc, char *argv[], CommandLineArgs *args)
                     return -1;
                 }
                 break;
-            case 'o':
+            case 'c':
+                if (json_specified) {
+                    fprintf(stderr, "错误: -c 和 -j 选项不能同时使用\n");
+                    print_usage(argv[0]);
+                    return -1;
+                }
+                // 检查文件扩展名
+                if (!check_file_extension(optarg, ".csv")) {
+                    fprintf(stderr, "错误: -c 选项的文件必须以 .csv 结尾\n");
+                    fprintf(stderr, "提示: 您输入的文件是: %s\n", optarg);
+                    return -1;
+                }
                 args->output_file = optarg;
+                args->output_format = FILE_FORMAT_CSV;
+                csv_specified = 1;
+                break;
+            case 'j':
+                if (csv_specified) {
+                    fprintf(stderr, "错误: -c 和 -j 选项不能同时使用\n");
+                    print_usage(argv[0]);
+                    return -1;
+                }
+                // 检查文件扩展名
+                if (!check_file_extension(optarg, ".json")) {
+                    fprintf(stderr, "错误: -j 选项的文件必须以 .json 结尾\n");
+                    fprintf(stderr, "提示: 您输入的文件是: %s\n", optarg);
+                    return -1;
+                }
+                args->output_file = optarg;
+                args->output_format = FILE_FORMAT_JSON;
+                json_specified = 1;
                 break;
             case 'w':
                 args->with_rawbow = 1;  // 启用raw payload输出
@@ -375,11 +454,13 @@ int parse_args(int argc, char *argv[], CommandLineArgs *args)
             return -1;
         }
 
-        // 必须有输出文件
+        // 必须有输出文件 (-c 或 -j)
         if (!args->output_file) {
-            fprintf(stderr, "错误: 特征提取模式需要指定输出文件 (-o <output>)\n");
-            fprintf(stderr, "提示: 使用 -o 参数指定输出文件路径\n");
-            fprintf(stderr, "示例: %s -f input.pcap -o output.csv\n", (argc > 0) ? argv[0] : "kdadk_demo");
+            fprintf(stderr, "错误: 特征提取模式需要指定输出文件 (-c <output.csv> 或 -j <output.json>)\n");
+            fprintf(stderr, "提示: 使用 -c 参数指定CSV格式输出，或使用 -j 参数指定JSON格式输出\n");
+            fprintf(stderr, "示例:\n");
+            fprintf(stderr, "  %s -f input.pcap -c output.csv\n", (argc > 0) ? argv[0] : "kdadk_demo");
+            fprintf(stderr, "  %s -f input.pcap -j output.json\n", (argc > 0) ? argv[0] : "kdadk_demo");
             return -1;
         }
     }
@@ -395,9 +476,12 @@ int parse_args(int argc, char *argv[], CommandLineArgs *args)
 
         // 如果是PCAP文件输入，必须有输出文件
         if (args->num_pcap_files > 0 && !args->output_file) {
-            fprintf(stderr, "错误: 在线推理模式（PCAP文件输入）需要指定输出文件 (-o <output>)\n");
-            fprintf(stderr, "提示: 使用 -o 参数指定输出文件路径\n");
-            fprintf(stderr, "示例: %s -r config.yaml -p file1.pcap -p file2.pcap -o result.csv\n",
+            fprintf(stderr, "错误: 在线推理模式（PCAP文件输入）需要指定输出文件 (-c <output.csv> 或 -j <output.json>)\n");
+            fprintf(stderr, "提示: 使用 -c 参数指定CSV格式输出，或使用 -j 参数指定JSON格式输出\n");
+            fprintf(stderr, "示例:\n");
+            fprintf(stderr, "  %s -r config.yaml -p file1.pcap -p file2.pcap -c result.csv\n",
+                    (argc > 0) ? argv[0] : "kdadk_demo");
+            fprintf(stderr, "  %s -r config.yaml -p file1.pcap -p file2.pcap -j result.json\n",
                     (argc > 0) ? argv[0] : "kdadk_demo");
             return -1;
         }
@@ -452,7 +536,7 @@ int main(int argc, char *argv[])
         case 3:
             // 在线推理模式
             ret = online_inference_mode(args.config_file, (const char **)args.pcap_files, args.num_pcap_files,
-                                        args.interface, args.mode, args.output_file);
+                                        args.interface, args.mode, args.output_file, args.output_format);
             break;
 
         default:

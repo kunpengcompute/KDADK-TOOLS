@@ -1,3 +1,6 @@
+/*
+Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+ */
 #ifndef KDADK_FILE_WRITER_H
 #define KDADK_FILE_WRITER_H
 

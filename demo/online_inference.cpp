@@ -1,5 +1,29 @@
+/*
+Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+ */
 #include "online_inference.h"
 #include "kdadk_file_writer.h"
+#include <signal.h>
+
+static volatile sig_atomic_t g_interrupted = 0;
+
+static void signal_handler(int signum)
+{
+    if (signum == SIGINT) {
+        printf("\n\n收到中断信号 (Ctrl+C)，正在安全退出...\n");
+        g_interrupted = 1;
+    }
+}
+
+static void setup_signal_handler(void)
+{
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = signal_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGINT, &sa, NULL);
+}
 
 void expand_features_capacity(feature_vector_list *fv)
 {
@@ -42,7 +66,6 @@ void free_filtered_features(filtered_features *filtered)
     }
 }
 
-// 模式0: 单flow模式
 int inference_mode_single_flow(feature_extractor *extractor, inference_engine *engine, pcap_t *handle,
                                int ground_truth_label, filtered_features *all_filtered_out, int **all_predictions,
                                int **all_labels, int *total_count, PerformanceStats *stats)
@@ -55,32 +78,43 @@ int inference_mode_single_flow(feature_extractor *extractor, inference_engine *e
     *all_labels = (int *)malloc(capacity * sizeof(int));
     *total_count = 0;
 
-    // 用于保存所有过滤后的特征
     all_filtered_out->capacity = 1000;
     all_filtered_out->vectors = (feature_vector *)malloc(all_filtered_out->capacity * sizeof(feature_vector));
     all_filtered_out->count = 0;
     all_filtered_out->filtered_count = 0;
 
-    double extract_time = 0, infer_time = 0;
+    double extract_time = 0, infer_time = 0, pcap_time = 0;
 
-    while (pcap_next_ex(handle, &header, &packet) >= 0) {
+    while (1) {
+        if (g_interrupted)
+            break;
+
+        double t0 = get_time_in_seconds();
+        int ret = pcap_next_ex(handle, &header, &packet);
+        double t1 = get_time_in_seconds();
+
+        if (ret < 0)
+            break;  // 文件结束或错误
+        if (ret == 0)
+            continue;  // 超时，继续
+
+        pcap_time += (t1 - t0);
+        stats->total_packets++;
+        stats->total_bytes += header->caplen;
+
         feature_vector features;
         int has_feature = 0;
 
-        double t1 = get_time_in_seconds();
         if (process_packet(extractor, packet, header->caplen, &header->ts, &features, &has_feature) ==
             EXTRACTOR_SUCCESS) {
             double t2 = get_time_in_seconds();
             extract_time += (t2 - t1);
 
             if (has_feature) {
-                // 单flow推理
                 feature_vector_list fv_list = {&features, 1, 1};
 
-                // 过滤特征
                 filtered_features filtered = {0};
                 if (filter_features(engine, &fv_list, &filtered) == 0 && filtered.count > 0) {
-                    // 保存过滤后的特征
                     if (all_filtered_out->count >= all_filtered_out->capacity) {
                         all_filtered_out->capacity *= 2;
                         all_filtered_out->vectors = (feature_vector *)realloc(
@@ -89,7 +123,7 @@ int inference_mode_single_flow(feature_extractor *extractor, inference_engine *e
                     all_filtered_out->vectors[all_filtered_out->count++] = filtered.vectors[0];
                     all_filtered_out->filtered_count += filtered.filtered_count;
 
-                    // 推理
+                    // 统计推理时间
                     inference_result result;
                     result.predictions = (int *)malloc(sizeof(int));
                     result.count = 1;
@@ -99,7 +133,6 @@ int inference_mode_single_flow(feature_extractor *extractor, inference_engine *e
                         double t4 = get_time_in_seconds();
                         infer_time += (t4 - t3);
 
-                        // 保存结果
                         if (*total_count >= capacity) {
                             capacity *= 2;
                             *all_predictions = (int *)realloc(*all_predictions, capacity * sizeof(int));
@@ -116,10 +149,8 @@ int inference_mode_single_flow(feature_extractor *extractor, inference_engine *e
                 }
             }
         }
-        stats->total_bytes += header->caplen;
     }
 
-    // 处理剩余流
     feature_vector_list remaining = {0};
     remaining.capacity = 20000;
     remaining.vectors = (feature_vector *)malloc(remaining.capacity * sizeof(feature_vector));
@@ -130,10 +161,8 @@ int inference_mode_single_flow(feature_extractor *extractor, inference_engine *e
         extract_time += (t2 - t1);
 
         if (remaining.count > 0) {
-            // 过滤特征
             filtered_features filtered = {0};
             if (filter_features(engine, &remaining, &filtered) == 0 && filtered.count > 0) {
-                // 保存过滤后的特征
                 for (uint32_t i = 0; i < filtered.count; i++) {
                     if (all_filtered_out->count >= all_filtered_out->capacity) {
                         all_filtered_out->capacity *= 2;
@@ -144,7 +173,6 @@ int inference_mode_single_flow(feature_extractor *extractor, inference_engine *e
                 }
                 all_filtered_out->filtered_count += filtered.filtered_count;
 
-                // 推理
                 inference_result result;
                 result.predictions = (int *)malloc(filtered.count * sizeof(int));
                 result.count = filtered.count;
@@ -172,13 +200,13 @@ int inference_mode_single_flow(feature_extractor *extractor, inference_engine *e
         free(remaining.vectors);
     }
 
+    stats->pcap_read_time += pcap_time;
     stats->feature_extraction_time += extract_time;
     stats->inference_time += infer_time;
 
     return 0;
 }
 
-// 模式1: 批处理模式
 int inference_mode_batch(feature_extractor *extractor, inference_engine *engine, pcap_t *handle, int ground_truth_label,
                          filtered_features *all_filtered_out, int **all_predictions, int **all_labels, int *total_count,
                          PerformanceStats *stats)
@@ -190,14 +218,28 @@ int inference_mode_batch(feature_extractor *extractor, inference_engine *engine,
     all_features.capacity = 1000;
     all_features.vectors = (feature_vector *)malloc(all_features.capacity * sizeof(feature_vector));
 
-    double extract_time = 0;
+    double extract_time = 0, pcap_time = 0;
 
-    // 提取所有特征
-    while (pcap_next_ex(handle, &header, &packet) >= 0) {
+    while (1) {
+        if (g_interrupted)
+            break;
+
+        double t0 = get_time_in_seconds();
+        int ret = pcap_next_ex(handle, &header, &packet);
+        double t1 = get_time_in_seconds();
+
+        if (ret < 0)
+            break;  // 文件结束或错误
+        if (ret == 0)
+            continue;  // 超时，继续
+
+        pcap_time += (t1 - t0);
+        stats->total_packets++;
+        stats->total_bytes += header->caplen;
+
         feature_vector features;
         int has_feature = 0;
 
-        double t1 = get_time_in_seconds();
         if (process_packet(extractor, packet, header->caplen, &header->ts, &features, &has_feature) ==
             EXTRACTOR_SUCCESS) {
             double t2 = get_time_in_seconds();
@@ -210,10 +252,8 @@ int inference_mode_batch(feature_extractor *extractor, inference_engine *engine,
                 all_features.vectors[all_features.count++] = features;
             }
         }
-        stats->total_bytes += header->caplen;
     }
 
-    // 提取剩余流
     feature_vector_list remaining = {0};
     remaining.capacity = 20000;
     remaining.vectors = (feature_vector *)malloc(remaining.capacity * sizeof(feature_vector));
@@ -232,12 +272,12 @@ int inference_mode_batch(feature_extractor *extractor, inference_engine *engine,
         free(remaining.vectors);
     }
 
+    stats->pcap_read_time += pcap_time;
     stats->feature_extraction_time += extract_time;
 
     // 过滤特征
     filtered_features filtered = {0};
     if (filter_features(engine, &all_features, &filtered) == 0 && filtered.count > 0) {
-        // 保存过滤后的特征
         *all_filtered_out = filtered;
 
         // 批量推理
@@ -328,7 +368,6 @@ int read_features_from_file(const char *file_path, feature_vector_list *features
     return 0;
 }
 
-// 模式2: 文件模式
 int inference_mode_file(feature_extractor *extractor, inference_engine *engine, pcap_t *handle, int ground_truth_label,
                         filtered_features *all_filtered_out, int **all_predictions, int **all_labels, int *total_count,
                         PerformanceStats *stats, const char *output_file)
@@ -336,7 +375,6 @@ int inference_mode_file(feature_extractor *extractor, inference_engine *engine, 
     struct pcap_pkthdr *header;
     const u_char *packet;
 
-    // 临时文件
     char temp_file[1024];
     snprintf(temp_file, sizeof(temp_file), "temp.csv");
 
@@ -352,14 +390,28 @@ int inference_mode_file(feature_extractor *extractor, inference_engine *engine, 
     all_features.capacity = 1000;
     all_features.vectors = (feature_vector *)malloc(all_features.capacity * sizeof(feature_vector));
 
-    double extract_time = 0, io_time = 0;
+    double extract_time = 0, io_time = 0, pcap_time = 0;
 
-    // 提取特征并写入文件
-    while (pcap_next_ex(handle, &header, &packet) >= 0) {
+    while (1) {
+        if (g_interrupted)
+            break;
+
+        double t0 = get_time_in_seconds();
+        int ret = pcap_next_ex(handle, &header, &packet);
+        double t1 = get_time_in_seconds();
+
+        if (ret < 0)
+            break;
+        if (ret == 0)
+            continue;
+
+        pcap_time += (t1 - t0);
+        stats->total_packets++;
+        stats->total_bytes += header->caplen;
+
         feature_vector features;
         int has_feature = 0;
 
-        double t1 = get_time_in_seconds();
         if (process_packet(extractor, packet, header->caplen, &header->ts, &features, &has_feature) ==
             EXTRACTOR_SUCCESS) {
             double t2 = get_time_in_seconds();
@@ -372,10 +424,8 @@ int inference_mode_file(feature_extractor *extractor, inference_engine *engine, 
                 all_features.vectors[all_features.count++] = features;
             }
         }
-        stats->total_bytes += header->caplen;
     }
 
-    // 提取剩余流
     feature_vector_list remaining = {0};
     remaining.capacity = 20000;
     remaining.vectors = (feature_vector *)malloc(remaining.capacity * sizeof(feature_vector));
@@ -394,6 +444,7 @@ int inference_mode_file(feature_extractor *extractor, inference_engine *engine, 
         free(remaining.vectors);
     }
 
+    stats->pcap_read_time += pcap_time;
     stats->feature_extraction_time += extract_time;
 
     // ========== 写入文件 ==========
@@ -408,7 +459,6 @@ int inference_mode_file(feature_extractor *extractor, inference_engine *engine, 
 
     printf("特征已写入临时文件: %s (耗时: %.4f 秒)\n", temp_file, t4 - t3);
 
-    // 释放原始特征（模拟真实场景中内存被释放）
     free(all_features.vectors);
     all_features.vectors = NULL;
     all_features.count = 0;
@@ -430,18 +480,16 @@ int inference_mode_file(feature_extractor *extractor, inference_engine *engine, 
     // 过滤特征
     filtered_features filtered = {0};
     if (filter_features(engine, &loaded_features, &filtered) == 0 && filtered.count > 0) {
-        // 保存过滤后的特征
         *all_filtered_out = filtered;
 
-        // 推理
         inference_result result;
         result.predictions = (int *)malloc(filtered.count * sizeof(int));
         result.count = filtered.count;
 
-        double t5 = get_time_in_seconds();
+        double t7 = get_time_in_seconds();
         if (inference_predict(engine, &loaded_features, &result) == INFERENCE_SUCCESS) {
-            double t6 = get_time_in_seconds();
-            stats->inference_time += (t6 - t5);
+            double t8 = get_time_in_seconds();
+            stats->inference_time += (t8 - t7);
 
             *all_predictions = result.predictions;
             *all_labels = (int *)malloc(result.count * sizeof(int));
@@ -460,27 +508,229 @@ int inference_mode_file(feature_extractor *extractor, inference_engine *engine, 
 
     stats->file_io_time += io_time;
     free(loaded_features.vectors);
-
-    // 删除临时文件
     remove(temp_file);
 
     return 0;
 }
 
-// 在线推理主函数
-int online_inference_mode(const char *config_file, const char **pcap_files, int num_pcap_files, const char *interface,
-                          int mode, char *output_file)
+int online_inference_from_interface(inference_engine *engine, const char *interface, const char *output_file,
+                                    file_format format)
 {
-    printf("========== 在线推理模式 ==========\n");
-    printf("配置文件: %s\n", config_file);
-    printf("推理模式: %d\n", mode);
+    printf("\n========== 网口实时抓包模式 ==========\n");
+    printf("网口: %s\n", interface);
+    if (output_file) {
+        printf("输出文件: %s (格式: %s)\n", output_file, format == FILE_FORMAT_CSV ? "CSV" : "JSON");
+    } else {
+        printf("输出: 仅控制台显示\n");
+    }
 
-    // 初始化推理引擎
-    inference_config inf_config = {.config_file = config_file};
-    inference_engine *engine = inference_init(&inf_config);
-    if (!engine) {
-        fprintf(stderr, "错误: 无法初始化推理引擎\n");
+    // 注册信号处理函数
+    setup_signal_handler();
+
+    char errbuf[PCAP_ERRBUF_SIZE];
+    pcap_t *handle = pcap_open_live(interface, 65535, 1, 1000, errbuf);
+    if (!handle) {
+        fprintf(stderr, "错误: 无法打开网口: %s\n", errbuf);
         return -1;
+    }
+
+    feature_extractor *extractor = extractor_init(DLT_EN10MB);
+    if (!extractor) {
+        fprintf(stderr, "错误: 无法初始化特征提取器\n");
+        pcap_close(handle);
+        return -1;
+    }
+
+    PerformanceStats stats = {0};
+    double start_time = get_time_in_seconds();
+
+    filtered_features all_filtered = {0};
+    all_filtered.capacity = 1000;
+    all_filtered.vectors = (feature_vector *)malloc(all_filtered.capacity * sizeof(feature_vector));
+    all_filtered.count = 0;
+    all_filtered.filtered_count = 0;
+
+    int *all_predictions = NULL;
+    int predictions_capacity = 1000;
+    int predictions_count = 0;
+    all_predictions = (int *)malloc(predictions_capacity * sizeof(int));
+
+    struct pcap_pkthdr *header;
+    const u_char *packet;
+    int flow_count = 0;
+
+    printf("开始实时抓包 (Ctrl+C 退出)...\n\n");
+
+    while (!g_interrupted) {
+        double t0 = get_time_in_seconds();
+        int ret = pcap_next_ex(handle, &header, &packet);
+        double t1 = get_time_in_seconds();
+
+        if (ret < 0)
+            break;  // 错误
+        if (ret == 0)
+            continue;  // 超时
+
+        stats.pcap_read_time += (t1 - t0);
+        stats.total_packets++;
+        stats.total_bytes += header->caplen;
+
+        feature_vector features;
+        int has_feature = 0;
+
+        if (process_packet(extractor, packet, header->caplen, &header->ts, &features, &has_feature) ==
+            EXTRACTOR_SUCCESS) {
+            double t2 = get_time_in_seconds();
+            stats.feature_extraction_time += (t2 - t1);
+
+            if (has_feature) {
+                feature_vector_list fv_list = {&features, 1, 1};
+
+                filtered_features filtered = {0};
+                if (filter_features(engine, &fv_list, &filtered) == 0 && filtered.count > 0) {
+                    if (all_filtered.count >= all_filtered.capacity) {
+                        all_filtered.capacity *= 2;
+                        all_filtered.vectors = (feature_vector *)realloc(
+                            all_filtered.vectors, all_filtered.capacity * sizeof(feature_vector));
+                    }
+                    all_filtered.vectors[all_filtered.count++] = filtered.vectors[0];
+
+                    // 推理
+                    inference_result result;
+                    result.predictions = (int *)malloc(sizeof(int));
+                    result.count = 1;
+
+                    double t3 = get_time_in_seconds();
+                    if (inference_predict(engine, &fv_list, &result) == INFERENCE_SUCCESS) {
+                        double t4 = get_time_in_seconds();
+                        stats.inference_time += (t4 - t3);
+
+                        // 保存预测结果
+                        if (predictions_count >= predictions_capacity) {
+                            predictions_capacity *= 2;
+                            all_predictions = (int *)realloc(all_predictions, predictions_capacity * sizeof(int));
+                        }
+                        all_predictions[predictions_count++] = result.predictions[0];
+
+                        printf("Flow %d: 预测类别 = %d\n", flow_count++, result.predictions[0]);
+                    }
+                    free(result.predictions);
+                    free_filtered_features(&filtered);
+                } else {
+                    all_filtered.filtered_count++;
+                }
+            }
+        }
+    }
+
+    // 处理中断信号后的清理工作
+    if (g_interrupted) {
+        printf("\n正在处理剩余流...\n");
+    }
+
+    feature_vector_list remaining = {0};
+    remaining.capacity = 10000;
+    remaining.vectors = (feature_vector *)malloc(remaining.capacity * sizeof(feature_vector));
+
+    double t1 = get_time_in_seconds();
+    if (extractor_finalize(extractor, &remaining) == EXTRACTOR_SUCCESS) {
+        double t2 = get_time_in_seconds();
+        stats.feature_extraction_time += (t2 - t1);
+
+        if (remaining.count > 0) {
+            printf("处理 %u 个剩余流...\n", remaining.count);
+
+            // 过滤特征
+            filtered_features filtered = {0};
+            if (filter_features(engine, &remaining, &filtered) == 0 && filtered.count > 0) {
+                // 保存过滤后的特征
+                for (uint32_t i = 0; i < filtered.count; i++) {
+                    if (all_filtered.count >= all_filtered.capacity) {
+                        all_filtered.capacity *= 2;
+                        all_filtered.vectors = (feature_vector *)realloc(
+                            all_filtered.vectors, all_filtered.capacity * sizeof(feature_vector));
+                    }
+                    all_filtered.vectors[all_filtered.count++] = filtered.vectors[i];
+                }
+                all_filtered.filtered_count += filtered.filtered_count;
+
+                // 推理
+                inference_result result;
+                result.predictions = (int *)malloc(filtered.count * sizeof(int));
+                result.count = filtered.count;
+
+                double t3 = get_time_in_seconds();
+                if (inference_predict(engine, &remaining, &result) == INFERENCE_SUCCESS) {
+                    double t4 = get_time_in_seconds();
+                    stats.inference_time += (t4 - t3);
+
+                    for (uint32_t i = 0; i < result.count; i++) {
+                        if (predictions_count >= predictions_capacity) {
+                            predictions_capacity *= 2;
+                            all_predictions = (int *)realloc(all_predictions, predictions_capacity * sizeof(int));
+                        }
+                        all_predictions[predictions_count++] = result.predictions[i];
+                        printf("Flow %d: 预测类别 = %d\n", flow_count++, result.predictions[i]);
+                    }
+                }
+                free(result.predictions);
+                free_filtered_features(&filtered);
+            }
+        }
+        free(remaining.vectors);
+    }
+
+    double end_time = get_time_in_seconds();
+    stats.total_time = stats.feature_extraction_time + stats.inference_time;
+    stats.end_to_end_time = end_time - start_time;
+
+    // 打印性能统计
+    print_performance_stats(&stats);
+
+    printf("\n过滤统计: 保留 %u 个样本, 过滤掉 %u 个样本\n", all_filtered.count, all_filtered.filtered_count);
+    printf("总共处理: %d 个流\n", flow_count);
+
+    // 保存结果到文件
+    if (output_file && all_filtered.count > 0) {
+        printf("\n正在保存结果到文件...\n");
+
+        file_writer_config writer_config = {
+            .file_path = output_file, .format = format, .mode = WRITE_MODE_WITH_PREDICTIONS, .append = 0};
+
+        file_writer *writer = writer_create(&writer_config);
+        if (writer) {
+            feature_vector_list filtered_list = {all_filtered.vectors, all_filtered.count, all_filtered.count};
+
+            double io_start = get_time_in_seconds();
+            if (writer_write_features_with_predictions(writer, &filtered_list, all_predictions, predictions_count) ==
+                WRITER_SUCCESS) {
+                writer_flush(writer);
+                double io_end = get_time_in_seconds();
+                printf("推理结果已保存到: %s (耗时: %.4f 秒)\n", output_file, io_end - io_start);
+            } else {
+                fprintf(stderr, "错误: 保存结果失败\n");
+            }
+            writer_destroy(writer);
+        }
+    }
+
+    // 清理资源
+    free_filtered_features(&all_filtered);
+    free(all_predictions);
+    pcap_close(handle);
+    extractor_destroy(extractor);
+
+    return 0;
+}
+
+int online_inference_from_pcap(inference_engine *engine, const char **pcap_files, int num_pcap_files, int mode,
+                               char *output_file, file_format format)
+{
+    printf("\n========== PCAP文件推理模式 ==========\n");
+    printf("文件数量: %d\n", num_pcap_files);
+    printf("推理模式: %d (0=单flow, 1=批处理, 2=文件)\n", mode);
+    if (output_file) {
+        printf("输出文件: %s (格式: %s)\n", output_file, format == FILE_FORMAT_CSV ? "CSV" : "JSON");
     }
 
     PerformanceStats stats = {0};
@@ -490,95 +740,12 @@ int online_inference_mode(const char *config_file, const char **pcap_files, int 
     int *all_labels = NULL;
     int total_count = 0;
 
-    // 用于保存所有过滤后的特征
     filtered_features combined_filtered = {0};
     combined_filtered.capacity = 10000;
     combined_filtered.vectors = (feature_vector *)malloc(combined_filtered.capacity * sizeof(feature_vector));
     combined_filtered.count = 0;
     combined_filtered.filtered_count = 0;
 
-    // 处理网口实时抓包
-    if (interface) {
-        printf("从网口抓包: %s\n", interface);
-        char errbuf[PCAP_ERRBUF_SIZE];
-        pcap_t *handle = pcap_open_live(interface, 65535, 1, 1000, errbuf);
-        if (!handle) {
-            fprintf(stderr, "错误: 无法打开网口: %s\n", errbuf);
-            inference_destroy(engine);
-            free(combined_filtered.vectors);
-            return -1;
-        }
-
-        feature_extractor *extractor = extractor_init(DLT_EN10MB);
-
-        // 实时抓包不计算准确率，只进行推理
-        struct pcap_pkthdr *header;
-        const u_char *packet;
-        int flow_count = 0;
-
-        printf("开始实时抓包 (Ctrl+C 退出)...\n");
-        while (pcap_next_ex(handle, &header, &packet) >= 0) {
-            feature_vector features;
-            int has_feature = 0;
-
-            if (process_packet(extractor, packet, header->caplen, &header->ts, &features, &has_feature) ==
-                EXTRACTOR_SUCCESS) {
-                if (has_feature) {
-                    feature_vector_list fv_list = {&features, 1, 1};
-
-                    // 过滤特征
-                    filtered_features filtered = {0};
-                    if (filter_features(engine, &fv_list, &filtered) == 0 && filtered.count > 0) {
-                        // 推理
-                        inference_result result;
-                        result.predictions = (int *)malloc(sizeof(int));
-                        result.count = 1;
-
-                        if (inference_predict(engine, &fv_list, &result) == INFERENCE_SUCCESS) {
-                            printf("Flow %d: 预测类别 = %d\n", flow_count++, result.predictions[0]);
-                        }
-                        free(result.predictions);
-                        free_filtered_features(&filtered);
-                    }
-                }
-            }
-        }
-
-        // 处理剩余流
-        feature_vector_list remaining = {0};
-        remaining.capacity = 10000;
-        remaining.vectors = (feature_vector *)malloc(remaining.capacity * sizeof(feature_vector));
-
-        if (extractor_finalize(extractor, &remaining) == EXTRACTOR_SUCCESS) {
-            if (remaining.count > 0) {
-                // 过滤特征
-                filtered_features filtered = {0};
-                if (filter_features(engine, &remaining, &filtered) == 0 && filtered.count > 0) {
-                    // 推理
-                    inference_result result;
-                    result.predictions = (int *)malloc(filtered.count * sizeof(int));
-                    result.count = filtered.count;
-
-                    if (inference_predict(engine, &remaining, &result) == INFERENCE_SUCCESS) {
-                        for (uint32_t i = 0; i < result.count; i++) {
-                            printf("Flow %d: 预测类别 = %d\n", flow_count++, result.predictions[i]);
-                        }
-                    }
-                    free(result.predictions);
-                    free_filtered_features(&filtered);
-                }
-            }
-            free(remaining.vectors);
-        }
-
-        pcap_close(handle);
-        extractor_destroy(extractor);
-        inference_destroy(engine);
-        free(combined_filtered.vectors);
-        return 0;
-    }
-
-    // 处理PCAP文件
     for (int i = 0; i < num_pcap_files; i++) {
         printf("\n处理文件 %d/%d: %s (Label=%d)\n", i + 1, num_pcap_files, pcap_files[i], i);
 
@@ -590,13 +757,17 @@ int online_inference_mode(const char *config_file, const char **pcap_files, int 
         }
 
         feature_extractor *extractor = extractor_init(DLT_EN10MB);
+        if (!extractor) {
+            fprintf(stderr, "错误: 无法初始化特征提取器\n");
+            pcap_close(handle);
+            continue;
+        }
 
         int *predictions = NULL;
         int *labels = NULL;
         int count = 0;
         filtered_features file_filtered = {0};
 
-        // 根据模式选择处理方式
         switch (mode) {
             case 0:
                 inference_mode_single_flow(extractor, engine, handle, i, &file_filtered, &predictions, &labels, &count,
@@ -657,28 +828,25 @@ int online_inference_mode(const char *config_file, const char **pcap_files, int 
     if (total_count > 0) {
         ClassificationReport *report = calculate_classification_report(all_labels, all_predictions, total_count);
         if (report) {
-            printf("\n准确率: %.6f\n", report->accuracy);
             print_and_save_classification_report(report, output_file);
             free_classification_report(report);
         }
 
-        // 保存推理结果（原始特征 + 预测结果）
         if (output_file && combined_filtered.count > 0) {
-            file_format format = FILE_FORMAT_CSV;
-            if (strstr(output_file, ".json")) {
-                format = FILE_FORMAT_JSON;
-            }
-
             file_writer_config writer_config = {
                 .file_path = output_file, .format = format, .mode = WRITE_MODE_WITH_PREDICTIONS, .append = 0};
+
             file_writer *writer = writer_create(&writer_config);
             if (writer) {
                 feature_vector_list filtered_list = {combined_filtered.vectors, combined_filtered.count,
                                                      combined_filtered.count};
-                writer_write_features_with_predictions(writer, &filtered_list, all_predictions, total_count);
-                writer_flush(writer);
+
+                if (writer_write_features_with_predictions(writer, &filtered_list, all_predictions, total_count) ==
+                    WRITER_SUCCESS) {
+                    writer_flush(writer);
+                    printf("推理结果已保存到: %s\n", output_file);
+                }
                 writer_destroy(writer);
-                printf("推理结果已保存到: %s\n", output_file);
             }
         }
     }
@@ -686,7 +854,34 @@ int online_inference_mode(const char *config_file, const char **pcap_files, int 
     free_filtered_features(&combined_filtered);
     free(all_predictions);
     free(all_labels);
-    inference_destroy(engine);
 
     return 0;
+}
+
+int online_inference_mode(const char *config_file, const char **pcap_files, int num_pcap_files, const char *interface,
+                          int mode, char *output_file, file_format format)
+{
+    printf("========== 在线推理模式 ==========\n");
+    printf("配置文件: %s\n", config_file);
+
+    inference_config inf_config = {.config_file = config_file};
+    inference_engine *engine = inference_init(&inf_config);
+    if (!engine) {
+        fprintf(stderr, "错误: 无法初始化推理引擎\n");
+        return -1;
+    }
+
+    int result = 0;
+
+    if (interface) {
+        result = online_inference_from_interface(engine, interface, output_file, format);
+    } else if (num_pcap_files > 0) {
+        result = online_inference_from_pcap(engine, pcap_files, num_pcap_files, mode, output_file, format);
+    } else {
+        fprintf(stderr, "错误: 未指定输入源\n");
+        result = -1;
+    }
+
+    inference_destroy(engine);
+    return result;
 }

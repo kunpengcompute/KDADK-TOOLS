@@ -10,7 +10,6 @@ Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 #include <stdlib.h>
 #include <string.h>
 #include <netinet/in.h>
-#include "process_feature.h"
 
 #define HASH_BUCKETS 65536
 #define DLT_EN10MB 1
@@ -20,10 +19,14 @@ Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 extern "C" {
 #endif
 
-#define FEATURES_NUM FEATURE_MAX_SIZE + 1 /* 354 + 1 (flow_id在第0列) */
+typedef struct flow_hash flow_hash;
+typedef struct domain_name_hash domain_name_hash;
+
+#define FEATURES_NUM 355 /* 354 + 1 (flow_id在第0列) */
+#define RAWBOW_MAX_LEN 4096
 
 typedef struct {
-    float features[FEATURES_NUM]; /* features[0]是flow_id，features[1-354]是实际特征 */
+    float features[FEATURES_NUM];
 } feature_vector;
 
 typedef struct {

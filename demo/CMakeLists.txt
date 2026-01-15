@@ -9,9 +9,36 @@ set(PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 set(KDADK_LIB_DIR ${PROJECT_ROOT}/lib)
 set(KDADK_INCLUDE_DIR ${PROJECT_ROOT}/include)
 
+# ============= ONNX Runtime 配置 =============
+set(ONNXRUNTIME_ROOT "$ENV{ONNXRUNTIME_HOME}" CACHE PATH "Root directory of ONNX Runtime installation")
+if(NOT ONNXRUNTIME_ROOT)
+    set(ONNXRUNTIME_ROOT "${PROJECT_SOURCE_DIR}/util/onnxruntime-linux-aarch64-1.22.0")
+endif()
+
+# 查找 ONNX Runtime
+find_library(ONNXRUNTIME_LIB
+    NAMES onnxruntime
+    PATHS ${ONNXRUNTIME_ROOT}
+    PATH_SUFFIXES lib
+    NO_DEFAULT_PATH
+    REQUIRED
+)
+
+find_path(ONNXRUNTIME_INCLUDE_DIR
+    NAMES onnxruntime_c_api.h
+    PATHS ${ONNXRUNTIME_ROOT}
+    PATH_SUFFIXES include
+    NO_DEFAULT_PATH
+    REQUIRED
+)
+
+get_filename_component(ONNXRUNTIME_LIB_DIR ${ONNXRUNTIME_LIB} DIRECTORY)
+message(STATUS "Found ONNX Runtime library: ${ONNXRUNTIME_LIB}")
+message(STATUS "ONNX Runtime library directory: ${ONNXRUNTIME_LIB_DIR}")
+
 # 查找 libpcap
 find_package(PkgConfig REQUIRED)
-pkg_ck_modules(PCAP REQUIRED libpcap)
+pkg_check_modules(PCAP REQUIRED libpcap)
 
 # 查找 KDADK 库
 find_library(KDADK_FEATURE_LIB
@@ -52,6 +79,7 @@ target_link_libraries(traffic_demo
     ${KDADK_FEATURE_LIB}
     ${KDADK_INFERENCE_LIB}
     ${PCAP_LIBRARIES}
+    ${ONNXRUNTIME_LIB}
     pthread
     dl
 )

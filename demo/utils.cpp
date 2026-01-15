@@ -1,3 +1,6 @@
+/*
+Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+ */
 #include "utils.h"
 
 double get_time_in_seconds()
@@ -303,12 +306,14 @@ int print_and_save_classification_report(const ClassificationReport *report, cha
 void print_performance_stats(const PerformanceStats *stats)
 {
     printf("\n======================= 性能统计 =======================\n");
-    printf("特征提取耗时: %10.4f 秒\n", stats->feature_extraction_time);
-    printf("推理耗时:     %10.4f 秒\n", stats->inference_time);
-    printf("文件IO耗时:   %10.4f 秒\n", stats->file_io_time);
-    printf("总耗时:       %10.4f 秒(特征提取 + 推理 + 文件IO)\n", stats->total_time);
-    printf("端到端总耗时: %10.4f 秒(包含中间内存分配等开销)\n", stats->end_to_end_time);
-    printf("总数据量:     %10.4f MB\n", stats->total_bytes / (1024.0 * 1024.0));
+    printf("PCAP读取耗时:   %10.4f 秒\n", stats->pcap_read_time);
+    printf("特征提取耗时:   %10.4f 秒\n", stats->feature_extraction_time);
+    printf("推理耗时:       %10.4f 秒\n", stats->inference_time);
+    printf("文件IO耗时:     %10.4f 秒\n", stats->file_io_time);
+    printf("总耗时:         %10.4f 秒 (特征提取 + 推理 + 文件IO)\n", stats->total_time);
+    printf("端到端总耗时:   %10.4f 秒 (包含PCAP读取等所有开销)\n", stats->end_to_end_time);
+    printf("处理包数:       %10lu 个\n", stats->total_packets);
+    printf("总数据量:       %10.4f MB\n", stats->total_bytes / (1024.0 * 1024.0));
 
     if (stats->feature_extraction_time > 0) {
         double mbps = (stats->total_bytes / (1024.0 * 1024.0)) / stats->feature_extraction_time;
@@ -321,15 +326,17 @@ void print_performance_stats(const PerformanceStats *stats)
         double gbps = (stats->total_bytes * 8.0) / (1024.0 * 1024.0 * 1024.0) / stats->inference_time;
         printf("推理吞吐量:     %10.4f MB/s (%10.4f Gbps)\n", mbps, gbps);
     }
+
     if (stats->total_time > 0) {
         double mbps = (stats->total_bytes / (1024.0 * 1024.0)) / stats->total_time;
         double gbps = (stats->total_bytes * 8.0) / (1024.0 * 1024.0 * 1024.0) / stats->total_time;
         printf("核心处理吞吐量: %10.4f MB/s (%10.4f Gbps)\n", mbps, gbps);
     }
+
     if (stats->end_to_end_time > 0) {
         double mbps = (stats->total_bytes / (1024.0 * 1024.0)) / stats->end_to_end_time;
         double gbps = (stats->total_bytes * 8.0) / (1024.0 * 1024.0 * 1024.0) / stats->end_to_end_time;
         printf("端到端吞吐量:   %10.4f MB/s (%10.4f Gbps)\n", mbps, gbps);
     }
-    printf("======================================================\n\n");
+    printf("========================================================\n\n");
 }
