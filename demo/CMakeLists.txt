@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.10)
-project(traffic_demo)
+cmake_minimum_required(VERSION 3.22.0)
+project(kdadk_demo)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -24,17 +24,20 @@ find_library(ONNXRUNTIME_LIB
     REQUIRED
 )
 
-find_path(ONNXRUNTIME_INCLUDE_DIR
-    NAMES onnxruntime_c_api.h
-    PATHS ${ONNXRUNTIME_ROOT}
-    PATH_SUFFIXES include
-    NO_DEFAULT_PATH
-    REQUIRED
-)
-
 get_filename_component(ONNXRUNTIME_LIB_DIR ${ONNXRUNTIME_LIB} DIRECTORY)
 message(STATUS "Found ONNX Runtime library: ${ONNXRUNTIME_LIB}")
 message(STATUS "ONNX Runtime library directory: ${ONNXRUNTIME_LIB_DIR}")
+
+# ============= yaml-cpp 配置 =============
+find_library(YAML_CPP_LIB
+    NAMES yaml-cpp
+    PATHS /usr/local/lib64 /usr/lib /usr/lib64
+    REQUIRED
+)
+
+get_filename_component(YAML_CPP_LIB_DIR ${YAML_CPP_LIB} DIRECTORY)
+message(STATUS "Found yaml-cpp library: ${YAML_CPP_LIB}")
+message(STATUS "yaml-cpp library directory: ${YAML_CPP_LIB_DIR}")
 
 # 查找 libpcap
 find_package(PkgConfig REQUIRED)
@@ -67,7 +70,7 @@ include_directories(
 
 # 可执行文件
 add_executable(
-    traffic_demo
+    kdadk_demo
     main.cpp
     kdadk_file_writer.cpp
     online_inference.cpp
@@ -75,17 +78,18 @@ add_executable(
 )
 
 # 链接库
-target_link_libraries(traffic_demo
+target_link_libraries(kdadk_demo
     ${KDADK_FEATURE_LIB}
     ${KDADK_INFERENCE_LIB}
     ${PCAP_LIBRARIES}
     ${ONNXRUNTIME_LIB}
+    ${YAML_CPP_LIB}
     pthread
     dl
 )
 
 # 设置 RPATH
-set_target_properties(traffic_demo PROPERTIES
+set_target_properties(kdadk_demo PROPERTIES
     BUILD_RPATH "${KDADK_LIB_DIR}"
     INSTALL_RPATH "${KDADK_LIB_DIR}"
 )

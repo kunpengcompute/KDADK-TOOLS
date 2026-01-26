@@ -6,12 +6,17 @@ Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 #include <signal.h>
 
 static volatile sig_atomic_t g_interrupted = 0;
+static pcap_t *g_handle = NULL;
 
 static void signal_handler(int signum)
 {
     if (signum == SIGINT) {
         printf("\n\n收到中断信号 (Ctrl+C)，正在安全退出...\n");
         g_interrupted = 1;
+        
+        if (g_handle) {
+            pcap_breakloop(g_handle);
+        }
     }
 }
 
@@ -25,10 +30,16 @@ static void setup_signal_handler(void)
     sigaction(SIGINT, &sa, NULL);
 }
 
-void expand_features_capacity(feature_vector_list *fv)
+int expand_features_capacity(feature_vector_list *list)
 {
-    fv->capacity *= 2;
-    fv->vectors = (feature_vector *)realloc(fv->vectors, fv->capacity * sizeof(feature_vector));
+    size_t new_capacity = list->capacity * 2;
+    feature_vector *new_vectors = (feature_vector *)realloc(list->vectors, new_capacity * sizeof(feature_vector));
+    if (!new_vectors) {
+        return -1;
+    }
+    list->vectors = new_vectors;
+    list->capacity = new_capacity;
+    return 0;
 }
 
 int filter_features(const inference_engine *engine, const feature_vector_list *features, filtered_features *filtered)
@@ -39,6 +50,10 @@ int filter_features(const inference_engine *engine, const feature_vector_list *f
 
     filtered->capacity = features->count;
     filtered->vectors = (feature_vector *)malloc(filtered->capacity * sizeof(feature_vector));
+    if (!filtered->vectors) {
+        fprintf(stderr, "错误: 无法分配过滤特征内存\n");
+        return -1;
+    }
     filtered->count = 0;
     filtered->filtered_count = 0;
 
@@ -72,31 +87,47 @@ int inference_mode_single_flow(feature_extractor *extractor, inference_engine *e
 {
     struct pcap_pkthdr *header;
     const u_char *packet;
+    feature_vector_list remaining = {0};
+    double extract_time = 0, infer_time = 0, pcap_time = 0;
 
     int capacity = 1000;
     *all_predictions = (int *)malloc(capacity * sizeof(int));
+    if (!*all_predictions) {
+        fprintf(stderr, "错误: 无法分配预测结果内存\n");
+        return -1;
+    }
+
     *all_labels = (int *)malloc(capacity * sizeof(int));
+    if (!*all_labels) {
+        fprintf(stderr, "错误: 无法分配标签内存\n");
+        free(*all_predictions);
+        *all_predictions = NULL;
+        return -1;
+    }
     *total_count = 0;
 
     all_filtered_out->capacity = 1000;
     all_filtered_out->vectors = (feature_vector *)malloc(all_filtered_out->capacity * sizeof(feature_vector));
+    if (!all_filtered_out->vectors) {
+        fprintf(stderr, "错误: 无法分配过滤特征内存\n");
+        free(*all_predictions);
+        free(*all_labels);
+        *all_predictions = NULL;
+        *all_labels = NULL;
+        return -1;
+    }
     all_filtered_out->count = 0;
     all_filtered_out->filtered_count = 0;
 
-    double extract_time = 0, infer_time = 0, pcap_time = 0;
-
     while (1) {
-        if (g_interrupted)
-            break;
-
         double t0 = get_time_in_seconds();
         int ret = pcap_next_ex(handle, &header, &packet);
         double t1 = get_time_in_seconds();
 
         if (ret < 0)
-            break;  // 文件结束或错误
+            break;
         if (ret == 0)
-            continue;  // 超时，继续
+            continue;
 
         pcap_time += (t1 - t0);
         stats->total_packets++;
@@ -116,16 +147,27 @@ int inference_mode_single_flow(feature_extractor *extractor, inference_engine *e
                 filtered_features filtered = {0};
                 if (filter_features(engine, &fv_list, &filtered) == 0 && filtered.count > 0) {
                     if (all_filtered_out->count >= all_filtered_out->capacity) {
-                        all_filtered_out->capacity *= 2;
-                        all_filtered_out->vectors = (feature_vector *)realloc(
-                            all_filtered_out->vectors, all_filtered_out->capacity * sizeof(feature_vector));
+                        size_t new_capacity = all_filtered_out->capacity * 2;
+                        feature_vector *new_vectors =
+                            (feature_vector *)realloc(all_filtered_out->vectors, new_capacity * sizeof(feature_vector));
+                        if (!new_vectors) {
+                            fprintf(stderr, "错误: 扩容过滤特征列表失败\n");
+                            free_filtered_features(&filtered);
+                            continue;
+                        }
+                        all_filtered_out->vectors = new_vectors;
+                        all_filtered_out->capacity = new_capacity;
                     }
                     all_filtered_out->vectors[all_filtered_out->count++] = filtered.vectors[0];
                     all_filtered_out->filtered_count += filtered.filtered_count;
 
-                    // 统计推理时间
                     inference_result result;
                     result.predictions = (int *)malloc(sizeof(int));
+                    if (!result.predictions) {
+                        fprintf(stderr, "错误: 无法分配推理结果内存\n");
+                        free_filtered_features(&filtered);
+                        continue;
+                    }
                     result.count = 1;
 
                     double t3 = get_time_in_seconds();
@@ -134,9 +176,18 @@ int inference_mode_single_flow(feature_extractor *extractor, inference_engine *e
                         infer_time += (t4 - t3);
 
                         if (*total_count >= capacity) {
-                            capacity *= 2;
-                            *all_predictions = (int *)realloc(*all_predictions, capacity * sizeof(int));
-                            *all_labels = (int *)realloc(*all_labels, capacity * sizeof(int));
+                            size_t new_capacity = capacity * 2;
+                            int *new_predictions = (int *)realloc(*all_predictions, new_capacity * sizeof(int));
+                            int *new_labels = (int *)realloc(*all_labels, new_capacity * sizeof(int));
+                            if (!new_predictions || !new_labels) {
+                                fprintf(stderr, "错误: 扩容预测/标签列表失败\n");
+                                free(result.predictions);
+                                free_filtered_features(&filtered);
+                                continue;
+                            }
+                            *all_predictions = new_predictions;
+                            *all_labels = new_labels;
+                            capacity = new_capacity;
                         }
                         (*all_predictions)[*total_count] = result.predictions[0];
                         (*all_labels)[*total_count] = ground_truth_label;
@@ -151,23 +202,35 @@ int inference_mode_single_flow(feature_extractor *extractor, inference_engine *e
         }
     }
 
-    feature_vector_list remaining = {0};
-    remaining.capacity = 20000;
+    remaining.capacity = 100000;
     remaining.vectors = (feature_vector *)malloc(remaining.capacity * sizeof(feature_vector));
+    if (!remaining.vectors) {
+        fprintf(stderr, "错误: 无法分配剩余流内存\n");
+        stats->pcap_read_time += pcap_time;
+        stats->feature_extraction_time += extract_time;
+        stats->inference_time += infer_time;
+        return 0;
+    }
 
-    double t1 = get_time_in_seconds();
+    double t1_r = get_time_in_seconds();
     if (extractor_finalize(extractor, &remaining) == EXTRACTOR_SUCCESS) {
         double t2 = get_time_in_seconds();
-        extract_time += (t2 - t1);
+        extract_time += (t2 - t1_r);
 
         if (remaining.count > 0) {
             filtered_features filtered = {0};
             if (filter_features(engine, &remaining, &filtered) == 0 && filtered.count > 0) {
                 for (uint32_t i = 0; i < filtered.count; i++) {
                     if (all_filtered_out->count >= all_filtered_out->capacity) {
-                        all_filtered_out->capacity *= 2;
-                        all_filtered_out->vectors = (feature_vector *)realloc(
-                            all_filtered_out->vectors, all_filtered_out->capacity * sizeof(feature_vector));
+                        size_t new_capacity = all_filtered_out->capacity * 2;
+                        feature_vector *new_vectors =
+                            (feature_vector *)realloc(all_filtered_out->vectors, new_capacity * sizeof(feature_vector));
+                        if (!new_vectors) {
+                            fprintf(stderr, "错误: 扩容过滤特征列表失败\n");
+                            break;
+                        }
+                        all_filtered_out->vectors = new_vectors;
+                        all_filtered_out->capacity = new_capacity;
                     }
                     all_filtered_out->vectors[all_filtered_out->count++] = filtered.vectors[i];
                 }
@@ -175,25 +238,34 @@ int inference_mode_single_flow(feature_extractor *extractor, inference_engine *e
 
                 inference_result result;
                 result.predictions = (int *)malloc(filtered.count * sizeof(int));
-                result.count = filtered.count;
+                if (result.predictions) {
+                    result.count = filtered.count;
 
-                double t3 = get_time_in_seconds();
-                if (inference_predict(engine, &remaining, &result) == INFERENCE_SUCCESS) {
-                    double t4 = get_time_in_seconds();
-                    infer_time += (t4 - t3);
+                    double t3 = get_time_in_seconds();
+                    if (inference_predict(engine, &remaining, &result) == INFERENCE_SUCCESS) {
+                        double t4 = get_time_in_seconds();
+                        infer_time += (t4 - t3);
 
-                    for (uint32_t i = 0; i < result.count; i++) {
-                        if (*total_count >= capacity) {
-                            capacity *= 2;
-                            *all_predictions = (int *)realloc(*all_predictions, capacity * sizeof(int));
-                            *all_labels = (int *)realloc(*all_labels, capacity * sizeof(int));
+                        for (uint32_t i = 0; i < result.count; i++) {
+                            if (*total_count >= capacity) {
+                                size_t new_capacity = capacity * 2;
+                                int *new_predictions = (int *)realloc(*all_predictions, new_capacity * sizeof(int));
+                                int *new_labels = (int *)realloc(*all_labels, new_capacity * sizeof(int));
+                                if (!new_predictions || !new_labels) {
+                                    fprintf(stderr, "错误: 扩容预测/标签列表失败\n");
+                                    break;
+                                }
+                                *all_predictions = new_predictions;
+                                *all_labels = new_labels;
+                                capacity = new_capacity;
+                            }
+                            (*all_predictions)[*total_count] = result.predictions[i];
+                            (*all_labels)[*total_count] = ground_truth_label;
+                            (*total_count)++;
                         }
-                        (*all_predictions)[*total_count] = result.predictions[i];
-                        (*all_labels)[*total_count] = ground_truth_label;
-                        (*total_count)++;
                     }
+                    free(result.predictions);
                 }
-                free(result.predictions);
                 free_filtered_features(&filtered);
             }
         }
@@ -213,25 +285,26 @@ int inference_mode_batch(feature_extractor *extractor, inference_engine *engine,
 {
     struct pcap_pkthdr *header;
     const u_char *packet;
+    feature_vector_list remaining = {0};
+    double extract_time = 0, pcap_time = 0;
 
     feature_vector_list all_features = {0};
     all_features.capacity = 1000;
     all_features.vectors = (feature_vector *)malloc(all_features.capacity * sizeof(feature_vector));
-
-    double extract_time = 0, pcap_time = 0;
+    if (!all_features.vectors) {
+        fprintf(stderr, "错误: 无法分配特征向量内存\n");
+        return -1;
+    }
 
     while (1) {
-        if (g_interrupted)
-            break;
-
         double t0 = get_time_in_seconds();
         int ret = pcap_next_ex(handle, &header, &packet);
         double t1 = get_time_in_seconds();
 
         if (ret < 0)
-            break;  // 文件结束或错误
+            break;
         if (ret == 0)
-            continue;  // 超时，继续
+            continue;
 
         pcap_time += (t1 - t0);
         stats->total_packets++;
@@ -247,42 +320,59 @@ int inference_mode_batch(feature_extractor *extractor, inference_engine *engine,
 
             if (has_feature) {
                 if (all_features.count >= all_features.capacity) {
-                    expand_features_capacity(&all_features);
+                    if (expand_features_capacity(&all_features) != 0) {
+                        fprintf(stderr, "错误: 扩容特征列表失败\n");
+                        continue;
+                    }
                 }
                 all_features.vectors[all_features.count++] = features;
             }
         }
     }
 
-    feature_vector_list remaining = {0};
-    remaining.capacity = 20000;
+    remaining.capacity = 100000;
     remaining.vectors = (feature_vector *)malloc(remaining.capacity * sizeof(feature_vector));
+    if (!remaining.vectors) {
+        fprintf(stderr, "错误: 无法分配剩余流内存\n");
+        free(all_features.vectors);
+        stats->pcap_read_time += pcap_time;
+        stats->feature_extraction_time += extract_time;
+        return -1;
+    }
 
-    double t1 = get_time_in_seconds();
+    double t1_r = get_time_in_seconds();
     if (extractor_finalize(extractor, &remaining) == EXTRACTOR_SUCCESS) {
         double t2 = get_time_in_seconds();
-        extract_time += (t2 - t1);
+        extract_time += (t2 - t1_r);
 
         for (uint32_t i = 0; i < remaining.count; i++) {
             if (all_features.count >= all_features.capacity) {
-                expand_features_capacity(&all_features);
+                if (expand_features_capacity(&all_features) != 0) {
+                    fprintf(stderr, "错误: 扩容特征列表失败\n");
+                    break;
+                }
             }
             all_features.vectors[all_features.count++] = remaining.vectors[i];
         }
+        free(remaining.vectors);
+    } else {
         free(remaining.vectors);
     }
 
     stats->pcap_read_time += pcap_time;
     stats->feature_extraction_time += extract_time;
 
-    // 过滤特征
     filtered_features filtered = {0};
     if (filter_features(engine, &all_features, &filtered) == 0 && filtered.count > 0) {
         *all_filtered_out = filtered;
 
-        // 批量推理
         inference_result result;
         result.predictions = (int *)malloc(filtered.count * sizeof(int));
+        if (!result.predictions) {
+            fprintf(stderr, "错误: 无法分配推理结果内存\n");
+            free(all_features.vectors);
+            return -1;
+        }
         result.count = filtered.count;
 
         double t3 = get_time_in_seconds();
@@ -292,6 +382,12 @@ int inference_mode_batch(feature_extractor *extractor, inference_engine *engine,
 
             *all_predictions = result.predictions;
             *all_labels = (int *)malloc(result.count * sizeof(int));
+            if (!*all_labels) {
+                fprintf(stderr, "错误: 无法分配标签内存\n");
+                free(result.predictions);
+                free(all_features.vectors);
+                return -1;
+            }
             for (uint32_t i = 0; i < result.count; i++) {
                 (*all_labels)[i] = ground_truth_label;
             }
@@ -317,36 +413,44 @@ int read_features_from_file(const char *file_path, feature_vector_list *features
         return -1;
     }
 
-    // 初始化特征列表
     features->capacity = 1000;
     features->vectors = (feature_vector *)malloc(features->capacity * sizeof(feature_vector));
+    if (!features->vectors) {
+        fprintf(stderr, "错误: 无法分配特征向量内存\n");
+        fclose(fp);
+        return -1;
+    }
     features->count = 0;
 
-    char line[65536];  // 足够大的缓冲区
+    char line[65536];
     int line_num = 0;
 
-    // 跳过CSV头部
     if (fgets(line, sizeof(line), fp) == NULL) {
         fprintf(stderr, "错误: 文件为空\n");
+        free(features->vectors);
+        features->vectors = NULL;
         fclose(fp);
         return -1;
     }
     line_num++;
 
-    // 读取每一行
     while (fgets(line, sizeof(line), fp) != NULL) {
         line_num++;
 
-        // 扩容
         if (features->count >= features->capacity) {
-            features->capacity *= 2;
-            features->vectors =
-                (feature_vector *)realloc(features->vectors, features->capacity * sizeof(feature_vector));
+            size_t new_capacity = features->capacity * 2;
+            feature_vector *new_vectors =
+                (feature_vector *)realloc(features->vectors, new_capacity * sizeof(feature_vector));
+            if (!new_vectors) {
+                fprintf(stderr, "错误: 扩容特征列表失败\n");
+                break;
+            }
+            features->vectors = new_vectors;
+            features->capacity = new_capacity;
         }
 
         feature_vector *fv = &features->vectors[features->count];
 
-        // 解析CSV行
         char *token = strtok(line, ",");
         int col = 0;
 
@@ -374,6 +478,9 @@ int inference_mode_file(feature_extractor *extractor, inference_engine *engine, 
 {
     struct pcap_pkthdr *header;
     const u_char *packet;
+    feature_vector_list remaining = {0};
+    feature_vector_list loaded_features = {0};
+    double extract_time = 0, io_time = 0, pcap_time = 0;
 
     char temp_file[1024];
     snprintf(temp_file, sizeof(temp_file), "temp.csv");
@@ -389,13 +496,13 @@ int inference_mode_file(feature_extractor *extractor, inference_engine *engine, 
     feature_vector_list all_features = {0};
     all_features.capacity = 1000;
     all_features.vectors = (feature_vector *)malloc(all_features.capacity * sizeof(feature_vector));
-
-    double extract_time = 0, io_time = 0, pcap_time = 0;
+    if (!all_features.vectors) {
+        fprintf(stderr, "错误: 无法分配特征向量内存\n");
+        writer_destroy(writer);
+        return -1;
+    }
 
     while (1) {
-        if (g_interrupted)
-            break;
-
         double t0 = get_time_in_seconds();
         int ret = pcap_next_ex(handle, &header, &packet);
         double t1 = get_time_in_seconds();
@@ -419,35 +526,47 @@ int inference_mode_file(feature_extractor *extractor, inference_engine *engine, 
 
             if (has_feature) {
                 if (all_features.count >= all_features.capacity) {
-                    expand_features_capacity(&all_features);
+                    if (expand_features_capacity(&all_features) != 0) {
+                        fprintf(stderr, "错误: 扩容特征列表失败\n");
+                        continue;
+                    }
                 }
                 all_features.vectors[all_features.count++] = features;
             }
         }
     }
 
-    feature_vector_list remaining = {0};
-    remaining.capacity = 20000;
+    remaining.capacity = 100000;
     remaining.vectors = (feature_vector *)malloc(remaining.capacity * sizeof(feature_vector));
+    if (!remaining.vectors) {
+        fprintf(stderr, "错误: 无法分配剩余流内存\n");
+        free(all_features.vectors);
+        writer_destroy(writer);
+        stats->pcap_read_time += pcap_time;
+        stats->feature_extraction_time += extract_time;
+        return -1;
+    }
 
-    double t1 = get_time_in_seconds();
+    double t1_r = get_time_in_seconds();
     if (extractor_finalize(extractor, &remaining) == EXTRACTOR_SUCCESS) {
         double t2 = get_time_in_seconds();
-        extract_time += (t2 - t1);
+        extract_time += (t2 - t1_r);
 
         for (uint32_t i = 0; i < remaining.count; i++) {
             if (all_features.count >= all_features.capacity) {
-                expand_features_capacity(&all_features);
+                if (expand_features_capacity(&all_features) != 0) {
+                    fprintf(stderr, "错误: 扩容特征列表失败\n");
+                    break;
+                }
             }
             all_features.vectors[all_features.count++] = remaining.vectors[i];
         }
-        free(remaining.vectors);
     }
+    free(remaining.vectors);
 
     stats->pcap_read_time += pcap_time;
     stats->feature_extraction_time += extract_time;
 
-    // ========== 写入文件 ==========
     double t3 = get_time_in_seconds();
     if (writer_write_features(writer, &all_features) != WRITER_SUCCESS) {
         fprintf(stderr, "错误: 写入特征失败\n");
@@ -460,11 +579,7 @@ int inference_mode_file(feature_extractor *extractor, inference_engine *engine, 
     printf("特征已写入临时文件: %s (耗时: %.4f 秒)\n", temp_file, t4 - t3);
 
     free(all_features.vectors);
-    all_features.vectors = NULL;
-    all_features.count = 0;
 
-    // ========== 从文件读取特征 ==========
-    feature_vector_list loaded_features = {0};
     double t5 = get_time_in_seconds();
     if (read_features_from_file(temp_file, &loaded_features) != 0) {
         fprintf(stderr, "错误: 从文件读取特征失败\n");
@@ -477,13 +592,19 @@ int inference_mode_file(feature_extractor *extractor, inference_engine *engine, 
 
     printf("从文件读取特征完成 (耗时: %.4f 秒)\n", t6 - t5);
 
-    // 过滤特征
     filtered_features filtered = {0};
     if (filter_features(engine, &loaded_features, &filtered) == 0 && filtered.count > 0) {
         *all_filtered_out = filtered;
 
         inference_result result;
         result.predictions = (int *)malloc(filtered.count * sizeof(int));
+        if (!result.predictions) {
+            fprintf(stderr, "错误: 无法分配推理结果内存\n");
+            free(loaded_features.vectors);
+            stats->file_io_time += io_time;
+            remove(temp_file);
+            return -1;
+        }
         result.count = filtered.count;
 
         double t7 = get_time_in_seconds();
@@ -493,6 +614,14 @@ int inference_mode_file(feature_extractor *extractor, inference_engine *engine, 
 
             *all_predictions = result.predictions;
             *all_labels = (int *)malloc(result.count * sizeof(int));
+            if (!*all_labels) {
+                fprintf(stderr, "错误: 无法分配标签内存\n");
+                free(result.predictions);
+                free(loaded_features.vectors);
+                stats->file_io_time += io_time;
+                remove(temp_file);
+                return -1;
+            }
             for (uint32_t i = 0; i < result.count; i++) {
                 (*all_labels)[i] = ground_truth_label;
             }
@@ -528,12 +657,13 @@ int online_inference_from_interface(inference_engine *engine, const char *interf
     setup_signal_handler();
 
     char errbuf[PCAP_ERRBUF_SIZE];
-    pcap_t *handle = pcap_open_live(interface, 65535, 1, 1000, errbuf);
+    pcap_t *handle = pcap_open_live(interface, 65535, 1, 10, errbuf);
     if (!handle) {
         fprintf(stderr, "错误: 无法打开网口: %s\n", errbuf);
         return -1;
     }
-
+    g_handle = handle;
+    pcap_set_buffer_size(handle, 1024 * 1024 * 1024);
     feature_extractor *extractor = extractor_init(DLT_EN10MB);
     if (!extractor) {
         fprintf(stderr, "错误: 无法初始化特征提取器\n");
@@ -541,12 +671,22 @@ int online_inference_from_interface(inference_engine *engine, const char *interf
         return -1;
     }
 
+    feature_vector_list remaining = {0};
+    double t1_final = 0.0;
+    double end_time = 0.0;
+
     PerformanceStats stats = {0};
     double start_time = get_time_in_seconds();
 
     filtered_features all_filtered = {0};
     all_filtered.capacity = 1000;
     all_filtered.vectors = (feature_vector *)malloc(all_filtered.capacity * sizeof(feature_vector));
+    if (!all_filtered.vectors) {
+        fprintf(stderr, "错误: 无法分配过滤特征内存\n");
+        extractor_destroy(extractor);
+        pcap_close(handle);
+        return -1;
+    }
     all_filtered.count = 0;
     all_filtered.filtered_count = 0;
 
@@ -554,6 +694,13 @@ int online_inference_from_interface(inference_engine *engine, const char *interf
     int predictions_capacity = 1000;
     int predictions_count = 0;
     all_predictions = (int *)malloc(predictions_capacity * sizeof(int));
+    if (!all_predictions) {
+        fprintf(stderr, "错误: 无法分配预测结果内存\n");
+        free(all_filtered.vectors);
+        extractor_destroy(extractor);
+        pcap_close(handle);
+        return -1;
+    }
 
     struct pcap_pkthdr *header;
     const u_char *packet;
@@ -589,15 +736,27 @@ int online_inference_from_interface(inference_engine *engine, const char *interf
                 filtered_features filtered = {0};
                 if (filter_features(engine, &fv_list, &filtered) == 0 && filtered.count > 0) {
                     if (all_filtered.count >= all_filtered.capacity) {
-                        all_filtered.capacity *= 2;
-                        all_filtered.vectors = (feature_vector *)realloc(
-                            all_filtered.vectors, all_filtered.capacity * sizeof(feature_vector));
+                        size_t new_capacity = all_filtered.capacity * 2;
+                        feature_vector *new_vectors =
+                            (feature_vector *)realloc(all_filtered.vectors, new_capacity * sizeof(feature_vector));
+                        if (!new_vectors) {
+                            fprintf(stderr, "错误: 扩容过滤特征列表失败\n");
+                            free_filtered_features(&filtered);
+                            goto cleanup;
+                        }
+                        all_filtered.vectors = new_vectors;
+                        all_filtered.capacity = new_capacity;
                     }
                     all_filtered.vectors[all_filtered.count++] = filtered.vectors[0];
 
                     // 推理
                     inference_result result;
                     result.predictions = (int *)malloc(sizeof(int));
+                    if (!result.predictions) {
+                        fprintf(stderr, "错误: 无法分配推理结果内存\n");
+                        free_filtered_features(&filtered);
+                        goto cleanup;
+                    }
                     result.count = 1;
 
                     double t3 = get_time_in_seconds();
@@ -605,10 +764,17 @@ int online_inference_from_interface(inference_engine *engine, const char *interf
                         double t4 = get_time_in_seconds();
                         stats.inference_time += (t4 - t3);
 
-                        // 保存预测结果
                         if (predictions_count >= predictions_capacity) {
-                            predictions_capacity *= 2;
-                            all_predictions = (int *)realloc(all_predictions, predictions_capacity * sizeof(int));
+                            size_t new_capacity = predictions_capacity * 2;
+                            int *new_predictions = (int *)realloc(all_predictions, new_capacity * sizeof(int));
+                            if (!new_predictions) {
+                                fprintf(stderr, "错误: 扩容预测结果列表失败\n");
+                                free(result.predictions);
+                                free_filtered_features(&filtered);
+                                goto cleanup;
+                            }
+                            all_predictions = new_predictions;
+                            predictions_capacity = new_capacity;
                         }
                         all_predictions[predictions_count++] = result.predictions[0];
 
@@ -628,14 +794,17 @@ int online_inference_from_interface(inference_engine *engine, const char *interf
         printf("\n正在处理剩余流...\n");
     }
 
-    feature_vector_list remaining = {0};
-    remaining.capacity = 10000;
+    remaining.capacity = 100000;
     remaining.vectors = (feature_vector *)malloc(remaining.capacity * sizeof(feature_vector));
+    if (!remaining.vectors) {
+        fprintf(stderr, "错误: 无法分配剩余流内存\n");
+        goto cleanup;
+    }
 
-    double t1 = get_time_in_seconds();
+    t1_final = get_time_in_seconds();
     if (extractor_finalize(extractor, &remaining) == EXTRACTOR_SUCCESS) {
         double t2 = get_time_in_seconds();
-        stats.feature_extraction_time += (t2 - t1);
+        stats.feature_extraction_time += (t2 - t1_final);
 
         if (remaining.count > 0) {
             printf("处理 %u 个剩余流...\n", remaining.count);
@@ -646,9 +815,20 @@ int online_inference_from_interface(inference_engine *engine, const char *interf
                 // 保存过滤后的特征
                 for (uint32_t i = 0; i < filtered.count; i++) {
                     if (all_filtered.count >= all_filtered.capacity) {
-                        all_filtered.capacity *= 2;
-                        all_filtered.vectors = (feature_vector *)realloc(
-                            all_filtered.vectors, all_filtered.capacity * sizeof(feature_vector));
+                        size_t new_capacity = all_filtered.capacity * 2;
+                        feature_vector *new_vectors =
+                            (feature_vector *)realloc(all_filtered.vectors, new_capacity * sizeof(feature_vector));
+                        if (!new_vectors) {
+                            fprintf(stderr, "错误: 扩容过滤特征列表失败\n");
+                            free_filtered_features(&filtered);
+                            if (remaining.vectors) {
+                                free(remaining.vectors);
+                                remaining.vectors = NULL;
+                            }
+                            goto cleanup;
+                        }
+                        all_filtered.vectors = new_vectors;
+                        all_filtered.capacity = new_capacity;
                     }
                     all_filtered.vectors[all_filtered.count++] = filtered.vectors[i];
                 }
@@ -657,6 +837,15 @@ int online_inference_from_interface(inference_engine *engine, const char *interf
                 // 推理
                 inference_result result;
                 result.predictions = (int *)malloc(filtered.count * sizeof(int));
+                if (!result.predictions) {
+                    fprintf(stderr, "错误: 无法分配推理结果内存\n");
+                    free_filtered_features(&filtered);
+                    if (remaining.vectors) {
+                        free(remaining.vectors);
+                        remaining.vectors = NULL;
+                    }
+                    goto cleanup;
+                }
                 result.count = filtered.count;
 
                 double t3 = get_time_in_seconds();
@@ -666,8 +855,20 @@ int online_inference_from_interface(inference_engine *engine, const char *interf
 
                     for (uint32_t i = 0; i < result.count; i++) {
                         if (predictions_count >= predictions_capacity) {
-                            predictions_capacity *= 2;
-                            all_predictions = (int *)realloc(all_predictions, predictions_capacity * sizeof(int));
+                            size_t new_capacity = predictions_capacity * 2;
+                            int *new_predictions = (int *)realloc(all_predictions, new_capacity * sizeof(int));
+                            if (!new_predictions) {
+                                fprintf(stderr, "错误: 扩容预测结果列表失败\n");
+                                free(result.predictions);
+                                free_filtered_features(&filtered);
+                                if (remaining.vectors) {
+                                    free(remaining.vectors);
+                                    remaining.vectors = NULL;
+                                }
+                                goto cleanup;
+                            }
+                            all_predictions = new_predictions;
+                            predictions_capacity = new_capacity;
                         }
                         all_predictions[predictions_count++] = result.predictions[i];
                         printf("Flow %d: 预测类别 = %d\n", flow_count++, result.predictions[i]);
@@ -677,10 +878,14 @@ int online_inference_from_interface(inference_engine *engine, const char *interf
                 free_filtered_features(&filtered);
             }
         }
-        free(remaining.vectors);
     }
 
-    double end_time = get_time_in_seconds();
+    if (remaining.vectors) {
+        free(remaining.vectors);
+        remaining.vectors = NULL;
+    }
+
+    end_time = get_time_in_seconds();
     stats.total_time = stats.feature_extraction_time + stats.inference_time;
     stats.end_to_end_time = end_time - start_time;
 
@@ -711,12 +916,22 @@ int online_inference_from_interface(inference_engine *engine, const char *interf
                 fprintf(stderr, "错误: 保存结果失败\n");
             }
             writer_destroy(writer);
+        } else {
+            fprintf(stderr, "错误: 无法创建文件写入器\n");
         }
     }
 
+cleanup:
     // 清理资源
-    free_filtered_features(&all_filtered);
-    free(all_predictions);
+    if (remaining.vectors) {
+        free(remaining.vectors);
+    }
+    if (all_filtered.vectors) {
+        free_filtered_features(&all_filtered);
+    }
+    if (all_predictions) {
+        free(all_predictions);
+    }
     pcap_close(handle);
     extractor_destroy(extractor);
 
@@ -741,8 +956,12 @@ int online_inference_from_pcap(inference_engine *engine, const char **pcap_files
     int total_count = 0;
 
     filtered_features combined_filtered = {0};
-    combined_filtered.capacity = 10000;
+    combined_filtered.capacity = 30000;
     combined_filtered.vectors = (feature_vector *)malloc(combined_filtered.capacity * sizeof(feature_vector));
+    if (!combined_filtered.vectors) {
+        fprintf(stderr, "错误: 无法分配组合过滤特征内存\n");
+        return -1;
+    }
     combined_filtered.count = 0;
     combined_filtered.filtered_count = 0;
 
@@ -786,29 +1005,40 @@ int online_inference_from_pcap(inference_engine *engine, const char **pcap_files
                 break;
         }
 
-        // 合并过滤后的特征
         for (uint32_t j = 0; j < file_filtered.count; j++) {
             if (combined_filtered.count >= combined_filtered.capacity) {
-                combined_filtered.capacity *= 2;
-                combined_filtered.vectors = (feature_vector *)realloc(
-                    combined_filtered.vectors, combined_filtered.capacity * sizeof(feature_vector));
+                size_t new_capacity = combined_filtered.capacity * 2;
+                feature_vector *new_vectors =
+                    (feature_vector *)realloc(combined_filtered.vectors, new_capacity * sizeof(feature_vector));
+                if (!new_vectors) {
+                    fprintf(stderr, "错误: 扩容组合过滤特征列表失败\n");
+                    break;
+                }
+                combined_filtered.vectors = new_vectors;
+                combined_filtered.capacity = new_capacity;
             }
             combined_filtered.vectors[combined_filtered.count++] = file_filtered.vectors[j];
         }
         combined_filtered.filtered_count += file_filtered.filtered_count;
         free_filtered_features(&file_filtered);
 
-        // 合并结果
         if (count > 0) {
             int new_total = total_count + count;
-            all_predictions = (int *)realloc(all_predictions, new_total * sizeof(int));
-            all_labels = (int *)realloc(all_labels, new_total * sizeof(int));
-            memcpy(all_predictions + total_count, predictions, count * sizeof(int));
-            memcpy(all_labels + total_count, labels, count * sizeof(int));
-            total_count = new_total;
-
-            free(predictions);
-            free(labels);
+            int *new_predictions = (int *)realloc(all_predictions, new_total * sizeof(int));
+            int *new_labels = (int *)realloc(all_labels, new_total * sizeof(int));
+            if (!new_predictions || !new_labels) {
+                fprintf(stderr, "错误: 扩容预测/标签列表失败\n");
+                free(predictions);
+                free(labels);
+            } else {
+                all_predictions = new_predictions;
+                all_labels = new_labels;
+                memcpy(all_predictions + total_count, predictions, count * sizeof(int));
+                memcpy(all_labels + total_count, labels, count * sizeof(int));
+                total_count = new_total;
+                free(predictions);
+                free(labels);
+            }
         }
 
         pcap_close(handle);
@@ -819,12 +1049,10 @@ int online_inference_from_pcap(inference_engine *engine, const char **pcap_files
     stats.total_time = stats.feature_extraction_time + stats.inference_time + stats.file_io_time;
     stats.end_to_end_time = total_end - total_start;
 
-    // 打印性能统计
     print_performance_stats(&stats);
 
     printf("\n过滤统计: 保留 %u 个样本, 过滤掉 %u 个样本\n", combined_filtered.count, combined_filtered.filtered_count);
 
-    // 计算并保存分类报告
     if (total_count > 0) {
         ClassificationReport *report = calculate_classification_report(all_labels, all_predictions, total_count);
         if (report) {
@@ -852,8 +1080,10 @@ int online_inference_from_pcap(inference_engine *engine, const char **pcap_files
     }
 
     free_filtered_features(&combined_filtered);
-    free(all_predictions);
-    free(all_labels);
+    if (all_predictions)
+        free(all_predictions);
+    if (all_labels)
+        free(all_labels);
 
     return 0;
 }
