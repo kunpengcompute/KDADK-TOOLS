@@ -2,13 +2,14 @@
 
 # KDADK-TOOLS
 ## 1. 项目介绍
-KDADK-TOOLS是鲲鹏数据分析开发套件的网络流分类库，包含流汇聚、协议检测、特征计算、规则+AI双引擎和训练工具包，针对鲲鹏特性进行极致亲和优化，在具备对明文流量分析能力的同时，亦能对加密流量进行实时分析，弥补传统基于规则检测的DPI方案无法分析加密流量的短板，为解决业界普遍难题提供端到端参考方案。
+KDADK-APPID是鲲鹏数据分析开发套件的网络流分类库，包含流汇聚、协议检测、特征计算、AI引擎和训练工具包，针对鲲鹏特性进行极致亲和优化，在具备对明文流量分析能力的同时，亦能对加密流量进行实时分析，弥补传统基于规则检测的DPI方案无法分析加密流量的短板，为解决业界普遍难题提供端到端参考方案。
+KDADK-TOOLS是基于网络流分类库接口实现的demo示例，提供了特征提取及推理相关接口的使用示例；同时提供了一些工具用于流量采集、特征过滤、模型训练及自适应打标签。
 
 ## 2. 版本说明
 **表1** 版本说明
 | KDADK-TOOLS  | 特性  |
 | ------------ | ------------ |
-| 1.0.1  | 鲲鹏数据分析开发套件的网络流分类库 |
+| 1.1.0  | 鲲鹏数据分析开发套件的网络流分类示例 |
 
 ## 3. 环境部署
 KDADK-TOOLS当前适配的处理器和操作系统为鲲鹏920新型号处理器，openEuler操作系统，若您在使用过程中遇到问题，请先检查使用的环境是否在已验证的环境范围内。
@@ -22,14 +23,11 @@ KDADK-TOOLS当前适配的处理器和操作系统为鲲鹏920新型号处理器
 **表3** 软件要求
 | 软件名称| 版本 |
 | --- | --- |
-|Python | 3.13 |
 | GCC | 10.3.1 |
 | CMake | 3.22.0 |
 | yaml-cpp | 0.8.0 |
 | onnxruntime| 1.22.0 |
-| libboundscheck | - |
-
-- 注：还需准备python环境，相关软件包及版本可见`KDADK-TOOLS/src/py/packages.txt`
+| Python | 3.13 |
 
 ### 3.1 依赖准备
 #### 3.1.1 安装yaml-cpp
@@ -77,7 +75,7 @@ make install
 ```
 
 #### 3.1.2 安装onnxruntime
-[这里](https://github.com/microsoft/onnxruntime/releases)下载源码包
+[这里](https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-aarch64-1.22.0.tgz)下载源码包
 
 将下载好的源码放在`KDADK-TOOLS/util/`文件夹下
 
@@ -89,351 +87,353 @@ tar -xzf onnxruntime-linux-aarch64-1.22.0.tgz
 export ONNXRUNTIME_HOME=/path/to/your/onnxruntime
 export LD_LIBRARY_PATH=$ONNXRUNTIME_HOME/lib:$LD_LIBRARY_PATH
 ```
-
-#### 3.1.3 配置华为安全函数
-[这里](https://gitee.com/openeuler/libboundscheck)下载源码包
-
-将下载好的源码放在`KDADK-TOOLS/util/`文件夹下
-
-```
-# 进入到KDADK-TOOLS/util/libboundscheck/下
-make CC=gcc
-
-# 设置环境变量
-export SECUREC_HOME=/path/to/your/libboundscheck
-export LD_LIBRARY_PATH=$SECUREC_HOME/lib:$LD_LIBRARY_PATH
-```
-#### 3.1.4 配置python环境
+#### 3.1.3 配置python环境
 
 在`src/py/packages.txt`文件中记录了离线训练需要的python环境依赖，可以执行下述命令安装python环境依赖
 ```
 pip install -r src/py/packages.txt
 ```
+#### 3.1.4 准备特征提取和推理库
+
+将下载好的动态库放到`KDADK-TOOLS/lib/`文件夹下
+
+```
+[root@master KDADK-TOOLS]# mkdir lib
+[root@master KDADK-TOOLS]# cd lib
+[root@master lib]# ls
+libKDADK_feature_extract.so  libKDADK_inference.so
+```
+### 3.2 编译指导
+进入到KDADK-TOOLS/demo执行下述命令
+
+```
+mkdir build
+cd build
+cmake ..
+make
+```
+编译得到可执行的二进制程序：`kdadk_demo`。具体使用方法可以参考[使用说明](#kdadk_demo使用说明)。
+
 ## 4. 接口说明
-### 4.1 feature_extract
-**接口功能**
-输入采集的流量包pcap文件，进行报文协议解析分类及数据清洗，将解析后的流数据根据已确定的特征计算策略进行具体的特征计算，包括直方图计算等。
+### 4.1 特征提取接口
 
-**接口定义**
+#### extractor_init
 
-```
-int feature_extract(const char* pcap_file);
-```
+**功能**
+创建并初始化特征提取器。
+**函数接口**
 
-**参数说明**
-|  参数名 | 描述  |
-| ------------ | ------------ |
-| pcap_file  | 流量包pcap文件路径  |
+````
+feature_extractor *extractor_init(int link_type);
+````
 
-**返回值**
-返回特征提取结果状态。
-- 0表示成功
-- -1表示失败
+**参数**
 
-**使用示例**
-调用特征提取动态库接口，实现特征提取功能。使用`include`目录下的`feature_extract.h`头文件。
-
-```
-#include <iostream>
-#include <vector>
-#include "feature_extract.h"
-
-int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        std::cerr << "用法: " << argv[0] << " <pcap_file>" << std::endl;
-        return 1;
-    }
-    const char *pcap_file = argv[1];
-    std::cout << "开始提取特征: " << pcap_file << std::endl;
-    int result = feature_extract(pcap_file);
-    
-    if (result == 0) {
-        std::cout << "特征提取成功" << std::endl;
-    } else {
-        std::cerr << "特征提取失败，返回值: " << result << std::endl;
-    }
-    
-    return result;
-}
-```
-编译，通过-l参数链接到libfeatureExtract.so及libboundscheck.so动态库。
-
-```
-g++ feature.cpp -o featureExtract -I./include/ -L./ -lfeatureExtract -lboundscheck
-```
-执行编译生成的二进制，进行协议解析及特征提取。
-
-```
-[root@localhost]# ./featureExtract data/aiqiyi/pcap/aiqiyi_20250715_093827_5h_android_16.pcap 
-开始提取特征: data/aiqiyi/pcap/aiqiyi_20250715_093827_5h_android_16.pcap
-Total packets: 1158299, decode packets: 1157053 
-特征提取成功
-```
-
-### 4.2 KDADK_Train
-**接口功能**
-根据流特征提取模块得到的流特征信息，调用Python脚本训练模型，基于随机森林算法来训练流量分类AI引擎。
-
-**接口定义**
-
-```
-def KDADK_Train(config_file);
-```
-
-**参数说明**
-|  参数名 | 描述  |
-| ------------ | ------------ |
-| config_file  | 输入训练模型的配置文件config.yaml路径  |
+* `link_type`： 链路层类型，支持`DLT_EN10MB(1)`、`DLT_LINUX_SLL(113)`
 
 **返回值**
-无
 
-### 4.3 KDADK_Evaluation
-**接口功能**
-使用训练模块训练完成的pkl模型权重，基于Python实现的随机森林推理模型，进行流量分类推理，输出流分类预测结果以及分类报告。
+* 特征提取器句柄，失败返回NULL
 
-**接口定义**
+#### extractor_destroy
 
-```
-def KDADK_Evaluation(config_file);
-```
+**功能**
+销毁特征提取器.
+**函数接口**
 
-**参数说明**
-|  参数名 | 描述  |
-| ------------ | ------------ |
-| config_file  | 输入推理模型的配置文件config.yaml路径  |
+````
+void extractor_destroy(feature_extractor *extractor);
+````
 
-**返回值**
-返回推理结果状态。
-- 0表示成功
-- -1表示失败
+**参数**
 
-### 4.4 KDADK_Inference
-**接口功能**
-使用训练模块训练好的ONNX模型权重，基于C++实现的随机森林推理模型，进行流量分类推理，输出流分类预测结果以及分类报告。
-
-**接口定义**
-
-```
-int KDADK_Inference(std::string config_file);
-```
-
-**参数说明**
-|  参数名 | 描述  |
-| ------------ | ------------ |
-| config_file  | 输入推理模型的配置文件config.yaml路径 |
+* `extractor `：  特征提取器句柄
 
 **返回值**
-返回推理结果状态。
-- 0表示成功
-- -1表示失败
 
-**使用示例**
-调用流量推理动态库接口，实现流量推理功能。使用`include`目录下的`inference.h`头文件。
+* 无
 
-```
-#include <iostream>
-#include <vector>
-#include "inference.h"
+#### process_packet
 
-int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        std::cerr << "用法: " << argv[0] << " <config_file>" << std::endl;
-        return 1;
-    }
-    const char *config_file = argv[1];
-    std::cout << "开始推理: " << config_file << std::endl;
-    int result = KDADK_Inference(config_file);
-    
-    if (result == 0) {
-        std::cout << "推理成功" << std::endl;
-    } else {
-        std::cerr << "推理失败，返回值: " << result << std::endl;
-    }
-    
-    return result;
-}
-```
-编译，通过-l参数链接到libonnxInference.so及libonnxruntime.so.1动态库。
+**功能**
+处理单个数据包，进行packet的协议解析及单个流的特征提取。
+**函数接口**
 
-```
-g++ inference.cpp -o inference -I./include -L./ -lonnxInference
-```
-执行编译生成的二进制，进行特征推理。
+````
+int process_packet(feature_extractor *extractor, const unsigned char *packet, uint32_t packet_len,
+                   const struct timeval *ts, feature_vector *features, int *has_feature);
+````
 
-```
-[root@localhost]# ./inference src/config.yaml
-开始推理: src/config.yaml
-正在加载配置文件...
-加载标准化器参数: result/scaler_params_2.json
-加载标准化器参数成功，特征数量: 351
-加载和准备数据...
-提示: 文件 data/bilibili/csv/bilibili_20250721_141827_21600_android_20.csv 所有数据行均有效
-提示: 文件 data/wenxiaoyan/csv/wenxiaoyan_20250804_205038_144000_android_20.csv 所有数据行均有效
-加载数据完成，样本数量: 9840
-检测到 raw_bow 列，将在输出中保留
-加载ONNX模型: result/model_classifier_2.onnx
-进行预测...
-ONNX推理：成功解析标签数量 = 9840
-准确率: 0.999593
-目录已存在: result
-警告: 文件 result/classification_report_2.txt 已存在，将被覆盖。
-分类报告已保存到: result/classification_report_2.txt
-警告: 文件 result/predictions_detail_2.csv 已存在，将被覆盖。
-详细预测结果已保存到: result/predictions_detail_2.csv
+**参数**
 
-推理完成！结果已保存到 result 目录
-推理成功
-```
+* `extractor `：  特征提取器句柄
+* `packet`：  数据包指针
+* `packet_len`：  数据包长度
+* `ts`： 时间戳
+* `features`：  输出特征向量（单个流）
+* `has_feature`： 输出标志，表示是否有特征提取（流结束才会进行特征提取）
 
+**返回值**
+
+* 状态码：EXTRACTOR_SUCCESS表示成功，EXTRACTOR_ERROR表示失败
+
+#### process_packet_with_rawbow
+
+**功能**
+处理单个数据包（提取特征向量和rawbow），进行packet的协议解析及单个流的特征提取，包含rawbow。
+**函数接口**
+
+````
+int process_packet_with_rawbow(feature_extractor *extractor, const unsigned char *packet, uint32_t packet_len,
+                               const struct timeval *ts, feature_vector *features, rawbow *rawbows, int *has_feature);
+````
+
+**参数**
+
+* `extractor `：  特征提取器句柄
+* `packet`：  数据包指针
+* `packet_len`：  数据包长度
+* `ts`： 时间戳
+* `features`：  输出特征向量（单个流）
+* `rawbows`： 输出rawbow（单个流）
+* `has_feature`： 输出标志，表示是否有特征提取（流结束才会进行特征提取）
+
+**返回值**
+
+* 状态码：EXTRACTOR_SUCCESS表示成功，EXTRACTOR_ERROR表示失败
+
+#### extractor_finalize
+
+**功能**
+处理所有剩余的流（仅提取特征向量）。
+**函数接口**
+
+````
+int extractor_finalize(feature_extractor *extractor, feature_vector_list *features);
+````
+
+**参数**
+
+* `extractor `：  特征提取器句柄
+* `features`：   输出特征向量列表
+
+**返回值**
+
+* 状态码：EXTRACTOR_SUCCESS表示成功，EXTRACTOR_ERROR表示失败
+
+#### extractor_finalize_with_rawbow
+
+**功能**
+处理所有剩余的流（提取特征向量和rawbow）。
+**函数接口**
+
+````
+int extractor_finalize_with_rawbow(feature_extractor *extractor, feature_vector_list *features, rawbow_list *rawbows);
+````
+
+**参数**
+
+* `extractor `：  特征提取器句柄
+* `features`：   输出特征向量列表
+* `rawbows`： 输出rawbow列表
+
+**返回值**
+
+* 状态码：EXTRACTOR_SUCCESS表示成功，EXTRACTOR_ERROR表示失败
+
+#### extractor_get_statistics
+
+**功能**
+获取统计信息。
+**函数接口**
+
+````
+int extractor_get_statistics(feature_extractor *extractor, statistics *stats);
+````
+
+**参数**
+
+* `extractor `：  特征提取器句柄
+* `stats`：   stats 输出统计信息
+
+**返回值**
+
+* 状态码：EXTRACTOR_SUCCESS表示成功，EXTRACTOR_ERROR表示失败
+
+#### extractor_reset_statistics
+
+**功能**
+重置统计信息。
+**函数接口**
+
+````
+void extractor_reset_statistics(feature_extractor *extractor);
+````
+
+**参数**
+
+* `extractor `：  特征提取器句柄
+* `stats`：   stats 输出统计信息
+
+**返回值**
+
+* 无
+
+### 4.2 特征推理接口
+
+#### inference_init
+
+**功能**
+创建并初始化推理引擎
+**函数接口**
+
+````
+inference_engine *inference_init(const inference_config *config);
+````
+
+**参数**
+
+* `config_file`：推理配置（包含配置文件路径）
+
+**返回值**
+
+* 推理引擎句柄，失败返回NULL。
+
+#### inference_destroy
+
+**功能**
+销毁推理引擎
+**函数接口**
+
+````
+void inference_destroy(inference_engine *engine);
+````
+
+**参数**
+
+* `engine`：推理引擎句柄
+
+**返回值**
+
+* 无
+
+#### inference_predict
+
+**功能**
+批量推理
+**函数接口**
+
+````
+int inference_predict(inference_engine *engine, const feature_vector_list *features, inference_result *result);
+````
+
+**参数**
+
+* `engine`：推理引擎句柄
+* `features`： 特征向量列表
+* `result`：输出推理结果
+
+**返回值**
+
+* 状态码：INFERENCE_SUCCESS表示成功，INFERENCE_ERROR表示失败
+
+
+<a id="kdadk_demo使用说明"></a>
 ## 5. 使用说明
-KDADK-TOOLS的入口函数目前有四个接口，分别是特征提取接口、模型训练接口、模型评估接口（python）以及模型推理接口（C++）。如下所示：
+kdadk_demo可以使用-h查看程序功能，如下所示：
 
 ```
-[root@ceph1 output]# ./kdadk_appid -h
-Usage:
-  ./kdadk_appid -f <pcap_file>              Extract features from PCAP
-  ./kdadk_appid -t <config.yaml>            Train model
-  ./kdadk_appid -e <config.yaml>            Evaluate model
-  ./kdadk_appid -i <config.yaml>            Run inference
-  ./kdadk_appid -h                          Show this help
-```
-四个接口的使用方法分别如下。
-- 注：output下的可执行文件以及动态链接库使用前需要添加执行权限。
+[root@master build]# ./kdadk_demo -h
+用法: ./kdadk_demo [选项]
 
-### 5.1 特征提取接口
-`./kdadk_appid -f <pcap_file>`
-其中参数`<pcap_file>`为要进行特征提取操作的pcap文件地址，输出为csv特征数据，位于pcap文件同级目录下。
+选项:
+  -t <config.yaml>        模型训练模式
+  -e <config.yaml>        模型验证模式
+  -f <file.pcap>          特征提取模式 (需要配合 -c 或 -j 使用)
+  -r <config.yaml>        在线推理模式 (需要配合 -c 或 -j 使用)
+  -p <file.pcap>          输入PCAP文件 (可多个)
+  -i <interface>          网口实时抓包
+  -m <mode>               推理模式: 0=单flow, 1=批处理, 2=文件 (默认: 1)
+  -c <output.csv>         输出CSV文件路径 (与 -j 互斥)
+  -j <output.json>        输出JSON文件路径 (与 -c 互斥)
+  -w                      输出是否带有rawbow (仅用于 -f 特征提取模式)
+  -l                      列出当前机器可用网口
+  -h                      显示帮助信息
 
+说明:
+  -c 和 -j 选项只能选择其中一个，分别指定CSV或JSON格式的输出文件
+  -c 选项的文件必须以 .csv 结尾
+  -j 选项的文件必须以 .json 结尾
+
+示例:
+  # 特征提取 - CSV格式
+  ./kdadk_demo -f input.pcap -c output.csv
+
+  # 特征提取 - JSON格式，带rawbow
+  ./kdadk_demo -f input.pcap -j output.json -w
+
+  # 在线推理 - 多个PCAP文件，输出CSV
+  ./kdadk_demo -r config.yaml -p file1.pcap -p file2.pcap -m 1 -c result.csv
+
+  # 在线推理 - 网口实时抓包，输出JSON
+  ./kdadk_demo -r config.yaml -i eth0 -j result.json
+
+  # 列出可用网口
+  ./kdadk_demo -l
 ```
-[root@ceph1 output]# ./kdadk_appid -f ../data/aiqiyi/aiqiyi_20250715_093827_5h_android_16.pcap 
-Extracting features from: ../data/aiqiyi/aiqiyi_20250715_093827_5h_android_16.pcap
-Total packets: 1158299, decode packets: 1157053
-Feature extraction completed.
-```
+其中核心功能模块有：模型训练(-t)、模型验证(-e)、特征提取(-f)、在线推理(-r)。
+
+### 5.1 模型训练 (-t)
+
+- 参数：`-t config.yaml`
+- 功能：读取配置文件，调用模型训练脚本（Python），执行模型训练任务。[config配置说明](#config配置)
+- config参数：`training_data_paths、model_path_pkl、scaler_path_pkl、model_path_onnx、scaler_path_json`
+
+### 5.2 模型验证 (-e)
+
+- 参数：`-e config.yaml`
+- 功能：读取配置文件，调用模型验证脚本（Python），执行模型验证。[config配置说明](#config配置)
+- config参数：`evaluation_data_paths、model_path_pkl、scaler_path_pkl、output_dir、classification_report_file、predictions_detail_file`
 - 注：对特征提取以后的CSV文件进行过滤：
-  - 过滤16个包以下的流
-  - 去除src_ip和dst_ip两列
-
-可以使用data目录下的两个脚本快速处理：`delete_flow_under_16.py、delete_first_two_column.py`。
-
-```
-python delete_flow_under_16.py
-
-python delete_first_two_column.py
-```
-### 5.2 模型训练接口
-`./kdadk_appid -t <config.yaml>`
-其中参数`<config.yaml>`为配置模型训练所需csv文件的yaml文件地址，该接口采用调用随机森林训练python文件运行的方式执行。`config.yaml`默认在`src/`目录下。[config配置说明](#config配置)
-
-- 注：需要配置的config参数：`training_data_paths、model_path_pkl、scaler_path_pkl、model_path_onnx、scaler_path_json`
+  - 过滤总packets数小于16以下的流（特征行）
+  - 删除flow_id、src_ip和dst_ip列
+可以使用data目录下的脚本快速处理：`feature_filter.py`。会读取config配置文件中的过滤条件：`columns_to_remove、filter_packets`
 
 ```
-(base) [root@ceph1 output]# ./kdadk_appid -t ../src/config.yaml 
-Training model with: src/config.yaml
-2025-11-25 14:56:02,099 - INFO - Loaded config file : ../src/config.yaml
-2025-11-25 14:56:06,081 - INFO - Start training the model...
-2025-11-25 14:56:51,269 - INFO - OOB Score: 0.9911258584767343
-2025-11-25 14:56:51,283 - INFO - Top 30 features:
-                     Feature  Importance
-343      raw_bow_crc_hist_24    0.053819
-164          receive_hdr_max    0.037204
-320       raw_bow_crc_hist_1    0.036575
-194  receive_hdr_hist_abs_11    0.030185
-58              send_pld_max    0.028718
-60              send_pld_var    0.028629
-109        send_interval_min    0.026081
-268     receive_interval_max    0.023495
-347      raw_bow_crc_hist_28    0.022692
-216          receive_pld_max    0.022460
-166          receive_hdr_var    0.022332
-110        send_interval_max    0.020868
-1                   dst_port    0.019146
-59             send_pld_mean    0.018439
-161        receive_byte_nums    0.017982
-322       raw_bow_crc_hist_3    0.017912
-270     receive_interval_var    0.016703
-196  receive_hdr_hist_abs_13    0.014535
-165         receive_hdr_mean    0.014486
-57              send_pld_min    0.014203
-217         receive_pld_mean    0.014036
-215          receive_pld_min    0.013714
-325       raw_bow_crc_hist_6    0.013343
-112        send_interval_var    0.013024
-77       send_pld_hist_abs_0    0.013007
-269    receive_interval_mean    0.011972
-345      raw_bow_crc_hist_26    0.011506
-111       send_interval_mean    0.011128
-236   receive_pld_hist_abs_1    0.010101
-218          receive_pld_var    0.009542
-2025-11-25 14:56:50,363 - INFO - 结果保存路径: result
-2025-11-25 14:56:51,363 - INFO - Model saved as result/model_classifier.pkl
-2025-11-25 14:56:52,840 - INFO - Model saved as result/model_classifier.onnx
-2025-11-25 14:56:52,843 - INFO - Scaler saved as result/scaler.pkl
-2025-11-25 14:56:53,363 - INFO - StandardScaler 参数已导出到 result/scaler_params.json
+python feature_filter.py ../src/config.yaml /path/to/data
 ```
-### 5.3 模型评估接口（python）
-`./kdadk_appid -e <config.yaml>`
-其中参数`<config.yaml>`为配置模型评估所需csv文件的yaml文件地址，该接口采用调用随机森林评估python文件运行的方式执行。`config.yaml`默认在`src/`目录下。[config配置说明](#config配置)
+### 5.3 特征提取 (-f)
 
-- 注：需要配置的config参数：`evaluation_data_paths、model_path_pkl、scaler_path_pkl、output_dir、classification_report_file、predictions_detail_file`
-```
-(base) [root@ceph1 output]# ./kdadk_appid -e ../src/config.yaml 
-Evaluating model with: ../src/config.yaml
-2025-11-25 14:58:27,237 - INFO - Loaded config file : ../src/config.yaml
-2025-11-25 14:58:29,022 - INFO - Model evaluation result:
-              precision    recall  f1-score   support
+- 参数：`-f xxx.pcap -c output.csv`或`-f xxx.pcap -j output.json`
+- 功能：输入pcap离线网络流量，进行协议解析及特征提取。
+- 输出：将特征提取结果保存在文件中，`-c output.csv`或`-j output.json`，两者二选一
+- 可选参数：使用`-w`选择输出是否带rawbow信息
 
-           0     0.9976    0.9985    0.9981      3370
-           1     0.9779    0.9892    0.9835      2591
-           2     0.9958    0.9952    0.9955      5460
-           3     0.9980    0.9955    0.9968      6470
-           4     0.9912    0.9762    0.9837       925
-           5     0.9978    0.9978    0.9978      8047
+### 5.4 在线推理 (-r)
 
-    accuracy                         0.9952     26863
-   macro avg     0.9930    0.9921    0.9925     26863
-weighted avg     0.9953    0.9952    0.9952     26863
+- 参数：`-r config.yaml`
+- 功能：读取配置文件，调用推理模块，执行在线推理任务，包括特征提取、数据过滤、特征推理。[config配置说明](#config配置)
+- config参数：`model_path_onnx、scaler_path_json、onnx_log_level、columns_to_remove、filter_packets`
+- 输入数据源：
+  - `-p xxx.pcap`：
+	  - 从pcap文件读取，支持多个-p指定输入多个pcap文件
+      - 使用`-m 0/1/2`指定使用的推理模式，其中0代表单flow模式, 1代表批处理模式, 2代表文件模式，默认为批处理模式
+      - 输出分类报告及分类结果，pcap数据输出需要指定文件路径
+  - `-i interface`：从网口实时抓取流量进行特征提取及推理；可选输出分类结果；网口可以使用-l参数来进行查询
+- 输出：将分类结果输出到文件中，`-c output.csv`或`-j output.json`，两者二选一
 
-2025-11-25 14:58:29,023 - INFO - Accuracy: 0.9952350817109035
-2025-11-25 14:58:29,023 - INFO - Classification report saved to: result/classification_report_6.txt
-2025-11-25 14:58:35,966 - INFO - Prediction results saved to: result/predictions_detail_6.csv
-2025-11-25 14:58:35,966 - INFO - Total samples: 26863
-2025-11-25 14:58:35,966 - INFO - Correct predictions: 26735/26863
-```
-### 5.4 模型评估接口（C++）
-`./kdadk_appid -i <config.yaml>`
-其中参数`<config.yaml>`为配置模型推理所需csv文件的yaml文件地址，该接口采用随机森林模型C++推理方式执行。`config.yaml`默认在`src/`目录下。[config配置说明](#config配置)
+### 5.5 查看网口 (-l)
 
-- 注：需要配置的config参数：`evaluation_data_paths、model_path_onnx、scaler_path_json、output_dir、classification_report_file、predictions_detail_file`
-```
-(base) [root@ceph1 output]# ./kdadk_appid -i ../src/config.yaml 
-Running inference with: ../src/config.yaml
-正在加载配置文件...
-加载标准化器参数: result/scaler_params.json
-加载标准化器参数成功，特征数量: 351
-加载和准备数据...
-提示: 文件 data/bilibili/csv/bilibili_20250721_141827_21600_android_20.csv 所有数据行均有效
-提示: 文件 data/aiqiyi/csv/aiqiyi_20250721_141719_21600_android_19.csv 所有数据行均有效
-提示: 文件 data/tencent/csv/tencent_20250730_172737_57600_android_20.csv 所有数据行均有效
-提示: 文件 data/wenxiaoyan/csv/wenxiaoyan_20250804_205038_144000_android_20.csv 所有数据行均有效
-提示: 文件 data/doubao/csv/doubao_20250721_201921_216000_android_17.csv 所有数据行均有效
-提示: 文件 data/yuanbao/csv/yuanbao_20250721_142339_216000_android_18.csv 所有数据行均有效
-加载数据完成，样本数量: 26863
-检测到 raw_bow 列，将在输出中保留
-加载ONNX模型: result/model_classifier.onnx
-进行预测...
-ONNX推理：成功解析标签数量 = 26863
-准确率: 0.994602
-目录已存在: result
-分类报告已保存到: result/classification_report_6.txt
-详细预测结果已保存到: result/predictions_detail_6.csv
+- 参数：`-l`
+- 功能：列出当前机器网口信息
 
-推理完成！结果已保存到 result 目录
-Inference completed.
-```
+### 5.6 帮助信息(-h)
+
+- 参数：`-h`
+- 功能：查看参数使用帮助信息
+
 <a id="config配置"></a>
-### 5.5 config配置
+### 5.7 config配置
 - **`training_data_paths`**：**模型训练**数据输入，每一类数据置于一个数组中，不同数组代表不同类别，一类数据可以存放多个csv文件
 
 ```
@@ -503,7 +503,18 @@ onnx_log_level: WARNING
 # ERROR     错误
 # FATAL     致命错误
 ```
-❗**注：所有路径支持绝对路径和相对路径，推荐使用绝对路径，在使用相对路径时默认从当前仓库根目录下算起。**
+- **`columns_to_remove`**：特征推理前对特征提取的结果进行过滤，列表中的数字表示特征列的下标减1，默认为0、1、2，其中第0列是flow_id,第1列是src_ip,第2列是dst_ip。用户可以自行调整，但是需要保证模型训练和模型推理时保持一致。
+
+```
+columns_to_remove: [0, 1, 2]
+```
+- **`filter_packets`**：特征推理前对特征提取的结果进行过滤，这里需要对send_packet_nums和receive_packet_nums之和小于filter_packets特征行进行过滤，默认值为16。用户可以自行调整，但是需要保证模型训练和模型推理时保持一致。
+
+```
+filter_packets: 16
+```
+❗注：所有路径支持绝对路径和相对路径，**推荐使用绝对路径**，在使用相对路径时默认从当前仓库根目录下算起。
+
 ## 6. 工具用法
 本仓库提供两个工具供用户使用：流量采集工具和流量打标签工具，位于`/tools/`，下面分别介绍用法。
 
