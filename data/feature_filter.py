@@ -111,11 +111,11 @@ def remove_columns_from_csv(csv_files, columns_to_remove):
             print(f"处理文件 {filepath} 时出错: {str(e)}")
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python3 feature_filter.py <path_to_config>")
+    if len(sys.argv) != 3:
+        print("Usage: python3 feature_filter.py <path_to_config> <path_to_data_folder>")
         sys.exit(1)
     config_file = sys.argv[1]
-    
+    current_dir = sys.argv[2]
     try:
         with open(config_file, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
@@ -151,7 +151,7 @@ if __name__ == "__main__":
     except Exception as e:
         raise Exception(f"An unexpected error occurred while reading the configuration file. - {str(e)}") from None
 
-    csv_files = get_current_csvs(current_dir="/home/l00934292/appid_data_bak")
+    csv_files = get_current_csvs(current_dir)
     
     # 只有当 filter_packets > 0 时才执行过滤
     if filter_packets > 0:
