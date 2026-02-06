@@ -207,9 +207,9 @@ static int write_json_feature_row(FILE *fp, const feature_vector *fv, int predic
 
     // 写入所有特征作为数组
     fprintf(fp, "    \"features\": [");
-    for (int i = 0; i < FEATURES_NUM; i++) {
+    for (int i = 0; i < FEATURES_NUM - 1; i++) {
         fprintf(fp, "%.6f", fv->features[i]);
-        if (i < FEATURES_NUM - 1) {
+        if (i < FEATURES_NUM - 2) {
             fprintf(fp, ", ");
         }
     }
@@ -380,9 +380,9 @@ static int write_json_feature_row_with_rawbow(FILE *fp, const feature_vector *fv
     fprintf(fp, "    \"protocol\": %.0f,\n", fv->features[5]);
 
     fprintf(fp, "    \"features\": [");
-    for (int i = 0; i < FEATURES_NUM; i++) {
+    for (int i = 0; i < FEATURES_NUM - 1; i++) {
         fprintf(fp, "%.6f", fv->features[i]);
-        if (i < FEATURES_NUM - 1) {
+        if (i < FEATURES_NUM - 2) {
             fprintf(fp, ", ");
         }
     }
