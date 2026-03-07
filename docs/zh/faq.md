@@ -1,20 +1,26 @@
 # 常见问题
 
-## 1. 特征提取时支持哪些协议类型
+## 特征提取时支持哪些协议类型
+**问题现象描述**
+特征提取时目前支持那些协议类型？
+
+**关键过程、根本原因分析**
 目前特征提取时只支持TCP和UDP协议，其他协议的包会默认丢弃。
 
+**结论、解决方案及效果**
 在demo示例的在线推理模式中如果使用非TCP/UDP协议pcap数据（如ICMP协议数据）时，会在特征提取时把不符合要求的包都丢弃，例如下面的例子：
-```
-[root@ceph1 KDADK-TOOLS]# /home/dta_deploy/KDADK-TOOLS/demo/build/kdadk_demo -r /home/dta_deploy/KDADK-TOOLS/src/config.yaml -m 0 -p /root/icmp_data.pcap
+
+```bash
+[root@ceph1 KDADK-TOOLS]# /opt/KDADK-TOOLS/demo/build/kdadk_demo -r /opt/KDADK-TOOLS/src/config.yaml -m 0 -p /root/icmp_data.pcap -c result.csv
 ========== 在线推理模式 ==========
-配置文件: /home/dta_deploy/KDADK-TOOLS/src/config.yaml
-Loading config file: /home/dta_deploy/KDADK-TOOLS/src/config.yaml
-model_path: /home/dta_deploy/KDADK-TOOLS/result/model_classifier_2.onnx
-scaler_path: /home/dta_deploy/KDADK-TOOLS/result/scaler_params_2.json
+配置文件: /opt/KDADK-TOOLS/src/config.yaml
+Loading config file: /opt/KDADK-TOOLS/src/config.yaml
+model_path: /opt/KDADK-TOOLS/result/model_classifier_2.onnx
+scaler_path: /opt/KDADK-TOOLS/result/scaler_params_2.json
 filter_packets: 16
-columns_to_remove: [4, 5, 6]
-Loading ONNX model: /home/dta_deploy/KDADK-TOOLS/result/model_classifier_2.onnx
-Loading scaler: /home/dta_deploy/KDADK-TOOLS/result/scaler_params_2.json
+columns_to_remove: [0, 1, 2]
+Loading ONNX model: /opt/KDADK-TOOLS/result/model_classifier_2.onnx
+Loading scaler: /opt/KDADK-TOOLS/result/scaler_params_2.json
 加载标准化器参数成功，特征数量: 351
 Inference engine initialized successfully
 
