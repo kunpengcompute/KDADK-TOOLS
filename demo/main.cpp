@@ -381,6 +381,7 @@ void print_usage(const char *prog_name)
     printf("  -c 和 -j 选项只能选择其中一个，分别指定CSV或JSON格式的输出文件\n");
     printf("  -c 选项的文件必须以 .csv 结尾\n");
     printf("  -j 选项的文件必须以 .json 结尾\n");
+    printf("  -w rawbow输出仅适用于 -f 特征提取模式, rawbow特征列信息仅用于流量打标签进行人工校验\n");
     printf("\n示例:\n");
     printf("  # 特征提取 - CSV格式\n");
     printf("  %s -f input.pcap -c output.csv\n", prog_name);
@@ -457,13 +458,17 @@ int parse_args(int argc, char *argv[], CommandLineArgs *args)
             case 'i':
                 args->interface = optarg;
                 break;
-            case 'm':
-                args->mode = atoi(optarg);
-                if (args->mode < 0 || args->mode > 2) {
-                    fprintf(stderr, "错误: 无效的推理模式 %d\n", args->mode);
+            case 'm':{
+                char *endptr;
+                errno = 0;
+                long val = strtol(optarg, &endptr, 10);
+                if (endptr == optarg || *endptr != '\0' || errno == ERANGE ||  val < 0 || val > 2) {
+                    fprintf(stderr, "错误: 无效的推理模式 \"%s\"\n", optarg);
                     return -1;
                 }
+                args->mode = (int)val;
                 break;
+            }
             case 'c':
                 if (json_specified) {
                     fprintf(stderr, "错误: -c 和 -j 选项不能同时使用\n");
