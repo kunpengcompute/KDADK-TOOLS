@@ -26,6 +26,7 @@ kdadk_demo可以使用-h查看程序功能，如下所示：
   -c 和 -j 选项只能选择其中一个，分别指定CSV或JSON格式的输出文件
   -c 选项的文件必须以 .csv 结尾
   -j 选项的文件必须以 .json 结尾
+  -w rawbow输出仅适用于 -f 特征提取模式, rawbow特征列信息仅用于流量打标签进行人工校验
 
 示例:
   # 特征提取 - CSV格式
@@ -62,11 +63,11 @@ kdadk_demo可以使用-h查看程序功能，如下所示：
 - 参数：`-f xxx.pcap -c output.csv`或`-f xxx.pcap -j output.json`
 - 功能：输入pcap离线网络流量，进行协议解析及特征提取。
 - 输出：将特征提取结果保存在文件中，`-c output.csv`或`-j output.json`，两者二选一
-- 可选参数：使用`-w`选择输出是否带rawbow信息
+- 可选参数：使用`-w`选择输出是否带rawbow信息,rawbow特征列信息仅用于流量打标签进行人工校验。
 - 注：对特征提取以后的CSV文件进行过滤：
   - 过滤总packets数小于16以下的流（特征行）
   - 删除flow_id、src_ip和dst_ip列
-可以使用data目录下的脚本快速处理：`feature_filter.py`。会读取config配置文件中的过滤条件：`columns_to_remove、filter_packets`
+可以使用data目录下的脚本快速处理：`feature_filter.py`。会读取config配置文件中的过滤条件：`columns_to_remove、filter_packets`。如果特征提取时选择了输出rawbow信息，那么在数据过滤时需要增加对这一列的过滤操作（在columns_to_remove的列表中增加354），模型训练和验证时不支持rawbow特征列的输入。在线推理模式默认会过滤掉rawbow特征列。
 
 ```
 python feature_filter.py ../src/config.yaml /path/to/data
