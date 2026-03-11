@@ -1,5 +1,6 @@
 
 # API参考
+
 ## 1. 特征提取接口
 
 ### extractor_init
@@ -10,33 +11,33 @@
 
 **函数接口**
 
-````
+````bash
 feature_extractor *extractor_init(int link_type);
 ````
 
 **参数**
 
-* `link_type`： 链路层类型，支持`DLT_EN10MB(1)`、`DLT_LINUX_SLL(113)`
+* `link_type`： 链路层类型，支持`DLT_EN10MB(1)`、`DLT_LINUX_SLL(113)`。
 
 **返回值**
 
-* 特征提取器句柄，失败返回NULL
+* 特征提取器句柄，失败返回NULL。
 
 ### extractor_destroy
 
 **功能**
 
-销毁特征提取器.
+销毁特征提取器。
 
 **函数接口**
 
-````
+````bash
 void extractor_destroy(feature_extractor *extractor);
 ````
 
 **参数**
 
-* `extractor `：  特征提取器句柄
+* `extractor`：  特征提取器句柄。
 
 **返回值**
 
@@ -50,23 +51,23 @@ void extractor_destroy(feature_extractor *extractor);
 
 **函数接口**
 
-````
+````bash
 int process_packet(feature_extractor *extractor, const unsigned char *packet, uint32_t packet_len,
                    const struct timeval *ts, feature_vector *features, int *has_feature);
 ````
 
 **参数**
 
-* `extractor `：  特征提取器句柄
-* `packet`：  数据包指针
-* `packet_len`：  数据包长度
-* `ts`： 时间戳
-* `features`：  输出特征向量（单个流）
-* `has_feature`： 输出标志，表示是否有特征提取（流结束才会进行特征提取）
+* `extractor`：  特征提取器句柄。
+* `packet`：  数据包指针。
+* `packet_len`：  数据包长度。
+* `ts`： 时间戳。
+* `features`：  输出特征向量（单个流）。
+* `has_feature`： 输出标志，表示是否有特征提取（流结束才会进行特征提取）。
 
 **返回值**
 
-* 状态码：EXTRACTOR_SUCCESS表示成功，EXTRACTOR_ERROR表示失败
+* 状态码：EXTRACTOR_SUCCESS表示成功，EXTRACTOR_ERROR表示失败。
 
 ### process_packet_with_rawbow
 
@@ -76,24 +77,24 @@ int process_packet(feature_extractor *extractor, const unsigned char *packet, ui
 
 **函数接口**
 
-````
+````bash
 int process_packet_with_rawbow(feature_extractor *extractor, const unsigned char *packet, uint32_t packet_len,
                                const struct timeval *ts, feature_vector *features, rawbow *rawbows, int *has_feature);
 ````
 
 **参数**
 
-* `extractor `：  特征提取器句柄
-* `packet`：  数据包指针
-* `packet_len`：  数据包长度
-* `ts`： 时间戳
-* `features`：  输出特征向量（单个流）
-* `rawbows`： 输出rawbow（单个流）
-* `has_feature`： 输出标志，表示是否有特征提取（流结束才会进行特征提取）
+* `extractor`：  特征提取器句柄。
+* `packet`：  数据包指针。
+* `packet_len`：  数据包长度。
+* `ts`： 时间戳。
+* `features`：  输出特征向量（单个流）。
+* `rawbows`： 输出rawbow（单个流）。
+* `has_feature`： 输出标志，表示是否有特征提取（流结束才会进行特征提取）。
 
 **返回值**
 
-* 状态码：EXTRACTOR_SUCCESS表示成功，EXTRACTOR_ERROR表示失败
+* 状态码：EXTRACTOR_SUCCESS表示成功，EXTRACTOR_ERROR表示失败。
 
 ### extractor_finalize
 
@@ -103,18 +104,18 @@ int process_packet_with_rawbow(feature_extractor *extractor, const unsigned char
 
 **函数接口**
 
-````
+````bash
 int extractor_finalize(feature_extractor *extractor, feature_vector_list *features);
 ````
 
 **参数**
 
-* `extractor `：  特征提取器句柄
-* `features`：   输出特征向量列表
+* `extractor`：  特征提取器句柄。
+* `features`：   输出特征向量列表。
 
 **返回值**
 
-* 状态码：EXTRACTOR_SUCCESS表示成功，EXTRACTOR_ERROR表示失败
+* 状态码：EXTRACTOR_SUCCESS表示成功，EXTRACTOR_ERROR表示失败。
 
 ### extractor_finalize_with_rawbow
 
@@ -124,19 +125,19 @@ int extractor_finalize(feature_extractor *extractor, feature_vector_list *featur
 
 **函数接口**
 
-````
+````bash
 int extractor_finalize_with_rawbow(feature_extractor *extractor, feature_vector_list *features, rawbow_list *rawbows);
 ````
 
 **参数**
 
-* `extractor `：  特征提取器句柄
-* `features`：   输出特征向量列表
-* `rawbows`： 输出rawbow列表
+* `extractor`：  特征提取器句柄。
+* `features`：   输出特征向量列表。
+* `rawbows`： 输出rawbow列表。
 
 **返回值**
 
-* 状态码：EXTRACTOR_SUCCESS表示成功，EXTRACTOR_ERROR表示失败
+* 状态码：EXTRACTOR_SUCCESS表示成功，EXTRACTOR_ERROR表示失败。
 
 ### extractor_get_statistics
 
@@ -146,18 +147,18 @@ int extractor_finalize_with_rawbow(feature_extractor *extractor, feature_vector_
 
 **函数接口**
 
-````
+````bash
 int extractor_get_statistics(feature_extractor *extractor, statistics *stats);
 ````
 
 **参数**
 
-* `extractor `：  特征提取器句柄
-* `stats`：   stats 输出统计信息
+* `extractor`：  特征提取器句柄。
+* `stats`：   stats 输出统计信息。  
 
 **返回值**
 
-* 状态码：EXTRACTOR_SUCCESS表示成功，EXTRACTOR_ERROR表示失败
+* 状态码：EXTRACTOR_SUCCESS表示成功，EXTRACTOR_ERROR表示失败。
 
 ### extractor_reset_statistics
 
@@ -167,14 +168,13 @@ int extractor_get_statistics(feature_extractor *extractor, statistics *stats);
 
 **函数接口**
 
-````
+````bash
 void extractor_reset_statistics(feature_extractor *extractor);
 ````
 
 **参数**
 
-* `extractor `：  特征提取器句柄
-* `stats`：   stats 输出统计信息
+* `extractor`：  特征提取器句柄。
 
 **返回值**
 
@@ -186,17 +186,17 @@ void extractor_reset_statistics(feature_extractor *extractor);
 
 **功能**
 
-创建并初始化推理引擎
+创建并初始化推理引擎。
 
 **函数接口**
 
-````
+````bash
 inference_engine *inference_init(const inference_config *config);
 ````
 
 **参数**
 
-* `config_file`：推理配置（包含配置文件路径）
+* `config_file`：推理配置（包含配置文件路径）。
 
 **返回值**
 
@@ -206,17 +206,17 @@ inference_engine *inference_init(const inference_config *config);
 
 **功能**
 
-销毁推理引擎
+销毁推理引擎。
 
 **函数接口**
 
-````
+````bash
 void inference_destroy(inference_engine *engine);
 ````
 
 **参数**
 
-* `engine`：推理引擎句柄
+* `engine`：推理引擎句柄。
 
 **返回值**
 
@@ -226,22 +226,20 @@ void inference_destroy(inference_engine *engine);
 
 **功能**
 
-批量推理
+批量推理。
 
 **函数接口**
 
-````
+````bash
 int inference_predict(inference_engine *engine, const feature_vector_list *features, inference_result *result);
 ````
 
 **参数**
 
-* `engine`：推理引擎句柄
-* `features`： 特征向量列表
-* `result`：输出推理结果
+* `engine`：推理引擎句柄。
+* `features`： 特征向量列表。
+* `result`：输出推理结果。
 
 **返回值**
 
-* 状态码：INFERENCE_SUCCESS表示成功，INFERENCE_ERROR表示失败
-
-
+* 状态码：INFERENCE_SUCCESS表示成功，INFERENCE_ERROR表示失败。
