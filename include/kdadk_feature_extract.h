@@ -47,7 +47,7 @@ typedef struct {
 } rawbow_list;
 
 typedef struct {
-    uint32_t total_packets;   /* 总包数 */
+    uint64_t total_packets;   /* 总包数 */
     uint64_t total_bytes;     /* 总字节数 */
     uint32_t decoded_packets; /* 成功解析的包数 */
     uint32_t extracted_flows; /* 已提取的流数 */
