@@ -995,9 +995,11 @@ int online_inference_from_pcap(inference_engine *engine, const char **pcap_files
             struct pcap_pkthdr *header;
             const u_char *packet;
             double pcap_time = 0, extract_time = 0;
-            while (1) {
+
+            int ret = 1;
+            while (ret >= 0) {
                 double t0 = get_time_in_seconds();
-                int ret = pcap_next_ex(handle, &header, &packet);
+                ret = pcap_next_ex(handle, &header, &packet);
                 double t1 = get_time_in_seconds();
                 
                 if (ret < 0)
@@ -1012,9 +1014,11 @@ int online_inference_from_pcap(inference_engine *engine, const char **pcap_files
                 double t2 = get_time_in_seconds();
                 feature_vector features;
                 int has_feature = 0;
-                multi_process_packet(multi_extractor, packet, header->caplen, &header->ts, &features, &has_feature);
-                double t3 = get_time_in_seconds();
-                extract_time += (t3 - t2);
+                
+                if (multi_process_packet(multi_extractor, packet, header->caplen, &header->ts, &features, &has_feature) == EXTRACTOR_SUCCESS) {
+                    double t3 = get_time_in_seconds();
+                    extract_time += (t3 - t2);
+                }
             }
 
             // 完成特征提取

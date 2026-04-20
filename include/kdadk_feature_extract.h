@@ -68,9 +68,10 @@ typedef struct {
 /**
  * @brief 创建并初始化特征提取器
  * @param link_type 链路层类型
+ * @param shared_domain_table 共享域名表指针，NULL表示不共享
  * @return 特征提取器句柄，失败返回NULL
  */
-feature_extractor *extractor_init(int link_type);
+feature_extractor *extractor_init(int link_type, domain_name_hash *shared_domain_table = NULL);
 
 /**
  * @brief 销毁特征提取器
