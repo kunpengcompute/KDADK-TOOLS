@@ -89,15 +89,18 @@ export LD_LIBRARY_PATH=$ONNXRUNTIME_HOME/lib:$LD_LIBRARY_PATH
 pip install -r /opt/KDADK-TOOLS/src/py/packages.txt
 ```
 
-### 4. 准备特征提取和推理库
+### 4. 配置特征提取和推理库
 
-将下载好的动态库`libKDADK_feature_extract.so`和`libKDADK_inference.so`放到`KDADK-TOOLS/lib/`文件夹下。
+下载[KDADK-APPID](https://gitcode.com/boostkit/KDADK-TOOLS/releases/download/v1.0.0/KDADK-1.0.0.zip
+)动态库。
 
 ```bash
-[root@master KDADK-TOOLS]# mkdir lib
-[root@master KDADK-TOOLS]# cd lib
-[root@master lib]# ls
-libKDADK_feature_extract.so  libKDADK_inference.so
+# 在/opt/KDADK-TOOLS/目录下执行 
+mkdir lib
+cd lib
+wget https://gitcode.com/boostkit/KDADK-TOOLS/releases/download/v1.0.0/KDADK-1.0.0.zip
+unzip KDADK-1.0.0.zip
+cd ..
 ```
 
 ## 编译指导
@@ -105,7 +108,7 @@ libKDADK_feature_extract.so  libKDADK_inference.so
 进入到`KDADK-TOOLS/demo`目录下执行下述命令编译。
 
 ```bash
-# 进入到KDADK-TOOLS/demo目录下
+# 进入到/opt/KDADK-TOOLS/demo目录下
 cd demo
 
 # 创建build文件夹

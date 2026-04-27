@@ -1,7 +1,7 @@
 
 # API参考
 
-## 1. 特征提取接口
+## 特征提取接口
 
 ### extractor_init
 
@@ -21,7 +21,7 @@ feature_extractor *extractor_init(int link_type);
 
 **返回值**
 
-* 特征提取器句柄，失败返回NULL。
+* 如果调用接口成功则返回特征提取器句柄，如果执行失败则返回NULL。
 
 ### extractor_destroy
 
@@ -180,7 +180,7 @@ void extractor_reset_statistics(feature_extractor *extractor);
 
 * 无
 
-## 2. 特征推理接口
+## 特征推理接口
 
 ### inference_init
 
@@ -200,7 +200,7 @@ inference_engine *inference_init(const inference_config *config);
 
 **返回值**
 
-* 推理引擎句柄，失败返回NULL。
+* 如果调用接口成功则返回推理引擎句柄，如果执行失败则返回NULL。
 
 ### inference_destroy
 
