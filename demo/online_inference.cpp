@@ -3,6 +3,7 @@ Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
  */
 #include "online_inference.h"
 #include "kdadk_file_writer.h"
+#include "kdadk_multi_thread.h"
 #include <signal.h>
 
 static volatile sig_atomic_t g_interrupted = 0;
@@ -939,7 +940,7 @@ cleanup:
 }
 
 int online_inference_from_pcap(inference_engine *engine, const char **pcap_files, int num_pcap_files, int mode,
-                               char *output_file, file_format format)
+                               char *output_file, file_format format, int use_multi_thread, int thread_count)
 {
     printf("\n========== PCAP文件推理模式 ==========\n");
     printf("文件数量: %d\n", num_pcap_files);
@@ -975,34 +976,117 @@ int online_inference_from_pcap(inference_engine *engine, const char **pcap_files
             continue;
         }
 
-        feature_extractor *extractor = extractor_init(DLT_EN10MB);
-        if (!extractor) {
-            fprintf(stderr, "错误: 无法初始化特征提取器\n");
-            pcap_close(handle);
-            continue;
-        }
-
         int *predictions = NULL;
         int *labels = NULL;
         int count = 0;
         filtered_features file_filtered = {0};
 
-        switch (mode) {
-            case 0:
-                inference_mode_single_flow(extractor, engine, handle, i, &file_filtered, &predictions, &labels, &count,
-                                           &stats);
-                break;
-            case 1:
-                inference_mode_batch(extractor, engine, handle, i, &file_filtered, &predictions, &labels, &count,
-                                     &stats);
-                break;
-            case 2:
-                inference_mode_file(extractor, engine, handle, i, &file_filtered, &predictions, &labels, &count, &stats,
-                                    output_file);
-                break;
-            default:
-                fprintf(stderr, "错误: 未知的推理模式 %d\n", mode);
-                break;
+        if (use_multi_thread) {
+            printf("使用多线程特征提取，线程数: %d\n", thread_count);
+            // 使用多线程特征提取
+            multi_thread_extractor *multi_extractor = multi_extractor_init(thread_count, DLT_EN10MB);
+            if (!multi_extractor) {
+                fprintf(stderr, "错误: 无法初始化多线程特征提取器\n");
+                pcap_close(handle);
+                continue;
+            }
+
+            // 处理数据包
+            struct pcap_pkthdr *header;
+            const u_char *packet;
+            double pcap_time = 0, extract_time = 0;
+
+            int ret = 1;
+            while (ret >= 0) {
+                double t0 = get_time_in_seconds();
+                ret = pcap_next_ex(handle, &header, &packet);
+                double t1 = get_time_in_seconds();
+                
+                if (ret < 0)
+                    break;
+                if (ret == 0)
+                    continue;
+                
+                pcap_time += (t1 - t0);
+                stats.total_packets++;
+                stats.total_bytes += header->caplen;
+                
+                double t2 = get_time_in_seconds();
+                feature_vector features;
+                int has_feature = 0;
+                
+                if (multi_process_packet(multi_extractor, packet, header->caplen, &header->ts, &features, &has_feature) == EXTRACTOR_SUCCESS) {
+                    double t3 = get_time_in_seconds();
+                    extract_time += (t3 - t2);
+                }
+            }
+
+            // 完成特征提取
+            feature_vector_list multi_features = {0};
+            if (multi_extractor_finalize(multi_extractor, &multi_features) == EXTRACTOR_SUCCESS) {
+                // 过滤特征
+                filtered_features filtered = {0};
+                if (filter_features(engine, &multi_features, &filtered) == 0 && filtered.count > 0) {
+                    file_filtered = filtered;
+
+                    // 推理
+                    inference_result result;
+                    result.predictions = (int *)malloc(filtered.count * sizeof(int));
+                    if (result.predictions) {
+                        result.count = filtered.count;
+
+                        double t3 = get_time_in_seconds();
+                        // 使用过滤后的特征进行推理
+                        feature_vector_list filtered_list = {filtered.vectors, filtered.count, filtered.count};
+                        if (inference_predict(engine, &filtered_list, &result) == INFERENCE_SUCCESS) {
+                            double t4 = get_time_in_seconds();
+                            stats.inference_time += (t4 - t3);
+
+                            predictions = result.predictions;
+                            labels = (int *)malloc(result.count * sizeof(int));
+                            if (labels) {
+                                for (uint32_t j = 0; j < result.count; j++) {
+                                    labels[j] = i;
+                                }
+                                count = result.count;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 更新性能统计
+            stats.pcap_read_time += pcap_time;
+            stats.feature_extraction_time += extract_time;
+
+            multi_extractor_destroy(multi_extractor);
+        } else {
+            feature_extractor *extractor = extractor_init(DLT_EN10MB);
+            if (!extractor) {
+                fprintf(stderr, "错误: 无法初始化特征提取器\n");
+                pcap_close(handle);
+                continue;
+            }
+
+            switch (mode) {
+                case 0:
+                    inference_mode_single_flow(extractor, engine, handle, i, &file_filtered, &predictions, &labels, &count,
+                                               &stats);
+                    break;
+                case 1:
+                    inference_mode_batch(extractor, engine, handle, i, &file_filtered, &predictions, &labels, &count,
+                                         &stats);
+                    break;
+                case 2:
+                    inference_mode_file(extractor, engine, handle, i, &file_filtered, &predictions, &labels, &count, &stats,
+                                        output_file);
+                    break;
+                default:
+                    fprintf(stderr, "错误: 未知的推理模式 %d\n", mode);
+                    break;
+            }
+
+            extractor_destroy(extractor);
         }
 
         for (uint32_t j = 0; j < file_filtered.count; j++) {
@@ -1042,7 +1126,6 @@ int online_inference_from_pcap(inference_engine *engine, const char **pcap_files
         }
 
         pcap_close(handle);
-        extractor_destroy(extractor);
     }
 
     double total_end = get_time_in_seconds();
@@ -1089,7 +1172,7 @@ int online_inference_from_pcap(inference_engine *engine, const char **pcap_files
 }
 
 int online_inference_mode(const char *config_file, const char **pcap_files, int num_pcap_files, const char *interface,
-                          int mode, char *output_file, file_format format)
+                          int mode, char *output_file, file_format format, int use_multi_thread, int thread_count)
 {
     printf("========== 在线推理模式 ==========\n");
     printf("配置文件: %s\n", config_file);
@@ -1106,7 +1189,7 @@ int online_inference_mode(const char *config_file, const char **pcap_files, int 
     if (interface) {
         result = online_inference_from_interface(engine, interface, output_file, format);
     } else if (num_pcap_files > 0) {
-        result = online_inference_from_pcap(engine, pcap_files, num_pcap_files, mode, output_file, format);
+        result = online_inference_from_pcap(engine, pcap_files, num_pcap_files, mode, output_file, format, use_multi_thread, thread_count);
     } else {
         fprintf(stderr, "错误: 未指定输入源\n");
         result = -1;

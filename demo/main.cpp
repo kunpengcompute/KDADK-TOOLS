@@ -6,6 +6,7 @@ Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 #include "kdadk_inference.h"
 #include "kdadk_file_writer.h"
 #include "online_inference.h"
+#include "kdadk_multi_thread.h"
 
 typedef struct {
     char *config_file;
@@ -17,26 +18,25 @@ typedef struct {
     int mode;                   // 0:单flow, 1:批处理, 2:文件模式
     int operation;              // 0:训练, 1:验证, 2:特征提取, 3:在线推理
     int with_rawbow;            // 是否输出rawbow (0:不输出, 1:输出)
+    int use_multi_thread;       // 是否使用多线程 (0:单线程, 1:多线程)
+    int thread_count;           // 线程数
 } CommandLineArgs;
 
-int feature_extraction_mode(const char *pcap_file, const char *output_file, int with_rawbow)
+int feature_extraction_mode(const char *pcap_file, const char *output_file, int with_rawbow, int use_multi_thread, int thread_count)
 {
     printf("========== 特征提取模式 ==========\n");
     printf("输入文件: %s\n", pcap_file);
     printf("输出文件: %s\n", output_file);
     printf("输出rawbow: %s\n", with_rawbow ? "是" : "否");
-
-    feature_extractor *extractor = extractor_init(DLT_EN10MB);
-    if (!extractor) {
-        fprintf(stderr, "错误: 无法初始化特征提取器\n");
-        return -1;
+    printf("使用多线程: %s\n", use_multi_thread ? "是" : "否");
+    if (use_multi_thread) {
+        printf("线程数: %d\n", thread_count);
     }
 
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_t *handle = pcap_open_offline(pcap_file, errbuf);
     if (!handle) {
         fprintf(stderr, "%s\n", errbuf);
-        extractor_destroy(extractor);
         return -1;
     }
 
@@ -51,7 +51,6 @@ int feature_extraction_mode(const char *pcap_file, const char *output_file, int 
     if (!writer) {
         fprintf(stderr, "错误: 无法创建文件写入器\n");
         pcap_close(handle);
-        extractor_destroy(extractor);
         return -1;
     }
 
@@ -60,160 +59,249 @@ int feature_extraction_mode(const char *pcap_file, const char *output_file, int 
     int packet_count = 0;
     int flow_count = 0;
 
-    feature_vector_list remaining = {0};
-    rawbow_list remaining_rawbows = {0};
-    int ret_code = 0;
-
     feature_vector_list all_features = {0};
-    all_features.capacity = 1000;
+    all_features.capacity = 100000;
     all_features.vectors = (feature_vector *)malloc(all_features.capacity * sizeof(feature_vector));
     if (!all_features.vectors) {
         fprintf(stderr, "错误: 无法分配特征向量内存\n");
         writer_destroy(writer);
         pcap_close(handle);
-        extractor_destroy(extractor);
         return -1;
     }
 
     rawbow_list all_rawbows = {0};
     if (with_rawbow) {
-        all_rawbows.capacity = 1000;
+        all_rawbows.capacity = 100000;
         all_rawbows.rawbows = (rawbow *)malloc(all_rawbows.capacity * sizeof(rawbow));
         if (!all_rawbows.rawbows) {
             fprintf(stderr, "错误: 无法分配rawbow内存\n");
             free(all_features.vectors);
             writer_destroy(writer);
             pcap_close(handle);
-            extractor_destroy(extractor);
             return -1;
         }
     }
-    while (pcap_next_ex(handle, &header, &packet) >= 0) {
-        packet_count++;
 
-        feature_vector features;
-        rawbow raw_payload;
-        int has_feature = 0;
+    if (use_multi_thread) {
+        // 使用多线程特征提取
+        multi_thread_extractor *multi_extractor = multi_extractor_init(thread_count, DLT_EN10MB);
+        if (!multi_extractor) {
+            fprintf(stderr, "错误: 无法初始化多线程特征提取器\n");
+            free(all_features.vectors);
+            if (with_rawbow) {
+                free(all_rawbows.rawbows);
+            }
+            writer_destroy(writer);
+            pcap_close(handle);
+            return -1;
+        }
+
+        while (pcap_next_ex(handle, &header, &packet) >= 0) {
+            packet_count++;
+            feature_vector features;
+            rawbow raw_payload;
+            int has_feature = 0;
+            if (with_rawbow) {
+                multi_process_packet_with_rawbow(multi_extractor, packet, header->caplen, &header->ts, &features, &raw_payload, &has_feature);
+            } else {
+                multi_process_packet(multi_extractor, packet, header->caplen, &header->ts, &features, &has_feature);
+            }
+        }
+
+        // 完成特征提取
+        feature_vector_list multi_features = {0};
+        rawbow_list multi_rawbows = {0};
+        if (with_rawbow) {
+            if (multi_extractor_finalize_with_rawbow(multi_extractor, &multi_features, &multi_rawbows) == EXTRACTOR_SUCCESS) {
+                // 复制结果
+                all_features = multi_features;
+                all_rawbows = multi_rawbows;
+            }
+        } else {
+            if (multi_extractor_finalize(multi_extractor, &multi_features) == EXTRACTOR_SUCCESS) {
+                // 复制结果
+                all_features = multi_features;
+            }
+        }
+
+        flow_count = all_features.count;
+
+        multi_extractor_destroy(multi_extractor);
+    } else {
+        // 使用单线程特征提取
+        feature_extractor *extractor = extractor_init(DLT_EN10MB);
+        if (!extractor) {
+            fprintf(stderr, "错误: 无法初始化特征提取器\n");
+            free(all_features.vectors);
+            if (with_rawbow) {
+                free(all_rawbows.rawbows);
+            }
+            writer_destroy(writer);
+            pcap_close(handle);
+            return -1;
+        }
+
+        feature_vector_list remaining = {0};
+        rawbow_list remaining_rawbows = {0};
+
+        while (pcap_next_ex(handle, &header, &packet) >= 0) {
+            packet_count++;
+
+            feature_vector features;
+            rawbow raw_payload;
+            int has_feature = 0;
+            int ret;
+            if (with_rawbow) {
+                ret = process_packet_with_rawbow(extractor, packet, header->caplen, &header->ts, &features, &raw_payload,
+                                                 &has_feature);
+            } else {
+                ret = process_packet(extractor, packet, header->caplen, &header->ts, &features, &has_feature);
+            }
+            if (ret == EXTRACTOR_SUCCESS && has_feature) {
+                if (all_features.count >= all_features.capacity) {
+                    size_t new_capacity = all_features.capacity * 2;
+                    feature_vector *new_vectors = (feature_vector *)realloc(all_features.vectors, 
+                                                                            new_capacity * sizeof(feature_vector));
+                    if (!new_vectors) {
+                        fprintf(stderr, "错误: 扩容特征向量列表失败\n");
+                        free(all_features.vectors);
+                        if (with_rawbow) {
+                            free(all_rawbows.rawbows);
+                        }
+                        writer_destroy(writer);
+                        pcap_close(handle);
+                        extractor_destroy(extractor);
+                        return -1;
+                    }
+                    all_features.vectors = new_vectors;
+                    all_features.capacity = new_capacity;
+                }
+                all_features.vectors[all_features.count++] = features;
+                // 扩容rawbow列表（如果需要）
+                if (with_rawbow) {
+                    if (all_rawbows.count >= all_rawbows.capacity) {
+                        size_t new_capacity = all_rawbows.capacity * 2;
+                        rawbow *new_rawbows = (rawbow *)realloc(all_rawbows.rawbows, new_capacity * sizeof(rawbow));
+                        if (!new_rawbows) {
+                            fprintf(stderr, "错误: 扩容rawbow列表失败\n");
+                            free(all_features.vectors);
+                            free(all_rawbows.rawbows);
+                            writer_destroy(writer);
+                            pcap_close(handle);
+                            extractor_destroy(extractor);
+                            return -1;
+                        }
+                        all_rawbows.rawbows = new_rawbows;
+                        all_rawbows.capacity = new_capacity;
+                    }
+                    all_rawbows.rawbows[all_rawbows.count++] = raw_payload;
+                }
+                flow_count++;
+            }
+        }
+
+        // 提取剩余流
+        remaining.capacity = 100000;
+        remaining.vectors = (feature_vector *)malloc(remaining.capacity * sizeof(feature_vector));
+        if (!remaining.vectors) {
+            fprintf(stderr, "错误: 无法分配剩余特征向量内存\n");
+            free(all_features.vectors);
+            if (with_rawbow) {
+                free(all_rawbows.rawbows);
+            }
+            writer_destroy(writer);
+            pcap_close(handle);
+            extractor_destroy(extractor);
+            return -1;
+        }
+
+        if (with_rawbow) {
+            remaining_rawbows.capacity = 100000;
+            remaining_rawbows.rawbows = (rawbow *)malloc(remaining_rawbows.capacity * sizeof(rawbow));
+            if (!remaining_rawbows.rawbows) {
+                fprintf(stderr, "错误: 无法分配剩余rawbow内存\n");
+                free(remaining.vectors);
+                free(all_features.vectors);
+                if (with_rawbow) {
+                    free(all_rawbows.rawbows);
+                }
+                writer_destroy(writer);
+                pcap_close(handle);
+                extractor_destroy(extractor);
+                return -1;
+            }
+        }
         int ret;
         if (with_rawbow) {
-            ret = process_packet_with_rawbow(extractor, packet, header->caplen, &header->ts, &features, &raw_payload,
-                                             &has_feature);
+            ret = extractor_finalize_with_rawbow(extractor, &remaining, &remaining_rawbows);
         } else {
-            ret = process_packet(extractor, packet, header->caplen, &header->ts, &features, &has_feature);
+            ret = extractor_finalize(extractor, &remaining);
         }
-        if (ret == EXTRACTOR_SUCCESS && has_feature) {
-            if (all_features.count >= all_features.capacity) {
-                size_t new_capacity = all_features.capacity * 2;
-                feature_vector *new_vectors = (feature_vector *)realloc(all_features.vectors, 
-                                                                        new_capacity * sizeof(feature_vector));
-                if (!new_vectors) {
-                    fprintf(stderr, "错误: 扩容特征向量列表失败\n");
-                    ret_code = -1;
-                    goto cleanup;
-                }
-                all_features.vectors = new_vectors;
-                all_features.capacity = new_capacity;
-            }
-            all_features.vectors[all_features.count++] = features;
-            // 扩容rawbow列表（如果需要）
-            if (with_rawbow) {
-                if (all_rawbows.count >= all_rawbows.capacity) {
-                    size_t new_capacity = all_rawbows.capacity * 2;
-                    rawbow *new_rawbows = (rawbow *)realloc(all_rawbows.rawbows, new_capacity * sizeof(rawbow));
-                    if (!new_rawbows) {
-                        fprintf(stderr, "错误: 扩容rawbow列表失败\n");
-                        ret_code = -1;
-                        goto cleanup;
-                    }
-                    all_rawbows.rawbows = new_rawbows;
-                    all_rawbows.capacity = new_capacity;
-                }
-                all_rawbows.rawbows[all_rawbows.count++] = raw_payload;
-            }
-            flow_count++;
-        }
-    }
-
-    // 提取剩余流
-    remaining.capacity = 100000;
-    remaining.vectors = (feature_vector *)malloc(remaining.capacity * sizeof(feature_vector));
-    if (!remaining.vectors) {
-        fprintf(stderr, "错误: 无法分配剩余特征向量内存\n");
-        ret_code = -1;
-        goto cleanup;
-    }
-
-    if (with_rawbow) {
-        remaining_rawbows.capacity = 100000;
-        remaining_rawbows.rawbows = (rawbow *)malloc(remaining_rawbows.capacity * sizeof(rawbow));
-        if (!remaining_rawbows.rawbows) {
-            fprintf(stderr, "错误: 无法分配剩余rawbow内存\n");
-            free(remaining.vectors);
-            remaining.vectors = NULL;
-            ret_code = -1;
-            goto cleanup;
-        }
-    }
-    int ret;
-    if (with_rawbow) {
-        ret = extractor_finalize_with_rawbow(extractor, &remaining, &remaining_rawbows);
-    } else {
-        ret = extractor_finalize(extractor, &remaining);
-    }
-    if (ret == EXTRACTOR_SUCCESS) {
-        for (uint32_t i = 0; i < remaining.count; i++) {
-            // 扩容特征向量列表
-            if (all_features.count >= all_features.capacity) {
-                size_t new_capacity = all_features.capacity * 2;
-                feature_vector *new_vectors = (feature_vector *)realloc(all_features.vectors, 
-                                                                        new_capacity * sizeof(feature_vector));
-                if (!new_vectors) {
-                    fprintf(stderr, "错误: 扩容特征向量列表失败\n");
-                    free(remaining.vectors);
-                    remaining.vectors = NULL;
-                    if (with_rawbow && remaining_rawbows.rawbows) {
-                        free(remaining_rawbows.rawbows);
-                        remaining_rawbows.rawbows = NULL;
-                    }
-                    ret_code = -1;
-                    goto cleanup;
-                }
-                all_features.vectors = new_vectors;
-                all_features.capacity = new_capacity;
-            }
-            all_features.vectors[all_features.count++] = remaining.vectors[i];
-
-            // 扩容rawbow列表（如果需要）
-            if (with_rawbow && i < remaining_rawbows.count) {
-                if (all_rawbows.count >= all_rawbows.capacity) {
-                    size_t new_capacity = all_rawbows.capacity * 2;
-                    rawbow *new_rawbows = (rawbow *)realloc(all_rawbows.rawbows, new_capacity * sizeof(rawbow));
-                    if (!new_rawbows) {
-                        fprintf(stderr, "错误: 扩容rawbow列表失败\n");
+        if (ret == EXTRACTOR_SUCCESS) {
+            for (uint32_t i = 0; i < remaining.count; i++) {
+                // 扩容特征向量列表
+                if (all_features.count >= all_features.capacity) {
+                    size_t new_capacity = all_features.capacity * 2;
+                    feature_vector *new_vectors = (feature_vector *)realloc(all_features.vectors, 
+                                                                            new_capacity * sizeof(feature_vector));
+                    if (!new_vectors) {
+                        fprintf(stderr, "错误: 扩容特征向量列表失败\n");
                         free(remaining.vectors);
-                        remaining.vectors = NULL;
-                        free(remaining_rawbows.rawbows);
-                        remaining_rawbows.rawbows = NULL;
-                        ret_code = -1;
-                        goto cleanup;
+                        if (with_rawbow && remaining_rawbows.rawbows) {
+                            free(remaining_rawbows.rawbows);
+                        }
+                        free(all_features.vectors);
+                        if (with_rawbow) {
+                            free(all_rawbows.rawbows);
+                        }
+                        writer_destroy(writer);
+                        pcap_close(handle);
+                        extractor_destroy(extractor);
+                        return -1;
                     }
-                    all_rawbows.rawbows = new_rawbows;
-                    all_rawbows.capacity = new_capacity;
+                    all_features.vectors = new_vectors;
+                    all_features.capacity = new_capacity;
                 }
-                all_rawbows.rawbows[all_rawbows.count++] = remaining_rawbows.rawbows[i];
+                all_features.vectors[all_features.count++] = remaining.vectors[i];
+
+                // 扩容rawbow列表（如果需要）
+                if (with_rawbow && i < remaining_rawbows.count) {
+                    if (all_rawbows.count >= all_rawbows.capacity) {
+                        size_t new_capacity = all_rawbows.capacity * 2;
+                        rawbow *new_rawbows = (rawbow *)realloc(all_rawbows.rawbows, new_capacity * sizeof(rawbow));
+                        if (!new_rawbows) {
+                            fprintf(stderr, "错误: 扩容rawbow列表失败\n");
+                            free(remaining.vectors);
+                            if (with_rawbow && remaining_rawbows.rawbows) {
+                                free(remaining_rawbows.rawbows);
+                            }
+                            free(all_features.vectors);
+                            if (with_rawbow) {
+                                free(all_rawbows.rawbows);
+                            }
+                            writer_destroy(writer);
+                            pcap_close(handle);
+                            extractor_destroy(extractor);
+                            return -1;
+                        }
+                        all_rawbows.rawbows = new_rawbows;
+                        all_rawbows.capacity = new_capacity;
+                    }
+                    all_rawbows.rawbows[all_rawbows.count++] = remaining_rawbows.rawbows[i];
+                }
+
+                flow_count++;
             }
-
-            flow_count++;
         }
-    }
 
-    if (remaining.vectors) {
-        free(remaining.vectors);
-        remaining.vectors = NULL;
-    }
-    if (with_rawbow && remaining_rawbows.rawbows) {
-        free(remaining_rawbows.rawbows);
-        remaining_rawbows.rawbows = NULL;
+        if (remaining.vectors) {
+            free(remaining.vectors);
+        }
+        if (with_rawbow && remaining_rawbows.rawbows) {
+            free(remaining_rawbows.rawbows);
+        }
+
+        extractor_destroy(extractor);
     }
 
     // 写入文件
@@ -233,13 +321,7 @@ int feature_extraction_mode(const char *pcap_file, const char *output_file, int 
     printf("  - 总流数: %d\n", flow_count);
     printf("  - 输出文件: %s\n", output_file);
 
-cleanup:
-    if (remaining.vectors) {
-        free(remaining.vectors);
-    }
-    if (with_rawbow && remaining_rawbows.rawbows) {
-        free(remaining_rawbows.rawbows);
-    }
+    // 清理资源
     if (all_features.vectors) {
         free(all_features.vectors);
     }
@@ -248,9 +330,8 @@ cleanup:
     }
     writer_destroy(writer);
     pcap_close(handle);
-    extractor_destroy(extractor);
 
-    return ret_code;
+    return 0;
 }
 
 void listNetworkDevices()
@@ -375,6 +456,8 @@ void print_usage(const char *prog_name)
     printf("  -c <output.csv>         输出CSV文件路径 (与 -j 互斥)\n");
     printf("  -j <output.json>        输出JSON文件路径 (与 -c 互斥)\n");
     printf("  -w                      输出是否带有rawbow (仅用于 -f 特征提取模式)\n");
+    printf("  -M                      启用多线程特征提取\n");
+    printf("  -T <num>                指定线程数 (默认: 4)\n");
     printf("  -l                      列出当前机器可用网口\n");
     printf("  -h                      显示帮助信息\n");
     printf("\n说明:\n");
@@ -423,6 +506,8 @@ int parse_args(int argc, char *argv[], CommandLineArgs *args)
     args->mode = 1;  // 默认批处理模式
     args->operation = -1;
     args->with_rawbow = 0;  // 默认不输出raw payload
+    args->use_multi_thread = 0;  // 默认使用单线程
+    args->thread_count = 4;  // 默认4线程
     int opt;
     int pcap_capacity = 20;  // 默认最大支持20个pcap
     args->pcap_files = (char **)malloc(pcap_capacity * sizeof(char *));
@@ -434,7 +519,7 @@ int parse_args(int argc, char *argv[], CommandLineArgs *args)
     int csv_specified = 0;  // 标记是否指定了 -c
     int json_specified = 0; // 标记是否指定了 -j
 
-    while ((opt = getopt(argc, argv, "t:e:f:r:p:i:m:c:j:wlh")) != -1) {
+    while ((opt = getopt(argc, argv, "t:e:f:r:p:i:m:c:j:T:wMh")) != -1) {
         switch (opt) {
             case 't':
                 args->operation = 0;
@@ -504,6 +589,20 @@ int parse_args(int argc, char *argv[], CommandLineArgs *args)
             case 'w':
                 args->with_rawbow = 1;  // 启用raw payload输出
                 break;
+            case 'M':
+                args->use_multi_thread = 1;  // 启用多线程
+                break;
+            case 'T':{
+                char *endptr;
+                errno = 0;
+                long val = strtol(optarg, &endptr, 10);
+                if (endptr == optarg || *endptr != '\0' || errno == ERANGE ||  val <= 0) {
+                    fprintf(stderr, "错误: 无效的线程数 \"%s\"\n", optarg);
+                    return -1;
+                }
+                args->thread_count = (int)val;
+                break;
+            }
             case 'l':
                 listNetworkDevices();
                 exit(0);
@@ -609,14 +708,14 @@ int main(int argc, char *argv[])
         case 2:
             // 特征提取模式
             if (args.num_pcap_files > 0) {
-                ret = feature_extraction_mode(args.pcap_files[0], args.output_file, args.with_rawbow);
+                ret = feature_extraction_mode(args.pcap_files[0], args.output_file, args.with_rawbow, args.use_multi_thread, args.thread_count);
             }
             break;
 
         case 3:
             // 在线推理模式
             ret = online_inference_mode(args.config_file, (const char **)args.pcap_files, args.num_pcap_files,
-                                        args.interface, args.mode, args.output_file, args.output_format);
+                                        args.interface, args.mode, args.output_file, args.output_format, args.use_multi_thread, args.thread_count);
             break;
 
         default:
