@@ -20,8 +20,8 @@
   -m <mode>               推理模式: 0=单flow, 1=批处理, 2=文件 (默认: 1)
   -c <output.csv>         输出CSV文件路径 (与 -j 互斥)
   -j <output.json>        输出JSON文件路径 (与 -c 互斥)
-  -w                      输出是否带有rawbow (仅用于 -f 特征提取模式)
-  -l                      列出当前机器可用网口
+  -w                      输出带有rawbow (仅用于 -f 特征提取模式)
+  -l                      列出当前服务器可用网口
   -h                      显示帮助信息
 
 说明:
@@ -66,7 +66,7 @@
 - 参数：`-f xxx.pcap -c output.csv`或`-f xxx.pcap -j output.json`
 - 功能：输入pcap离线网络流量，进行协议解析及特征提取。
 - 输出：将特征提取结果保存在文件中，`-c output.csv`或`-j output.json`，两者二选一。
-- 可选参数：使用`-w`选择输出是否带rawbow信息，rawbow特征列信息仅用于流量打标签进行人工校验。
+- 可选参数：使用`-w`选择输出带rawbow信息，rawbow特征列信息仅用于流量打标签进行人工校验。
 - 对特征提取以后的CSV文件进行数据过滤：
   - 过滤总packets数小于16以下的流（特征行）。
   - 删除flow_id、src_ip和dst_ip列。
@@ -92,7 +92,7 @@
 ### 5. 查看网口 (-l)
 
 - 参数：`-l`
-- 功能：列出当前机器网口信息。
+- 功能：列出当前服务器网口信息。
 
 ### 6. 帮助信息(-h)
 
@@ -243,7 +243,7 @@ options:
 
 - config_label.yaml： 配置文件，可以配置打标签工具具体参数。
 > ❗**须知：** 
-> 在inference推理时限定只输入一个csv特征文件，用户可以根据自己的需要来修改inferenceing源码中的`inference=False`入参来取消这一限定。
+> 在inference推理时限定只输入一个csv特征文件，用户可以根据自己的需要来修改推理源码中的`inference=False`入参来取消这一限定。
 ```bash
 # 流量打标签工具训练配置
 train:
