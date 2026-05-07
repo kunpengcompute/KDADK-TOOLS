@@ -63,7 +63,7 @@ int filter_features(const inference_engine *engine, const feature_vector_list *f
     for (uint32_t j = 0; j < features->count; j++) {
         const feature_vector *fv = &features->vectors[j];
 
-        if (fv->features[7] + fv->features[165] >= filter_packets) {
+        if (fv->features[SEND_PACKET_NUMS_INDEX] + fv->features[RECV_PACKET_NUMS_INDEX] >= filter_packets) {
             filtered->vectors[filtered->count++] = *fv;
         } else {
             filtered->filtered_count++;
@@ -1023,7 +1023,11 @@ int online_inference_from_pcap(inference_engine *engine, const char **pcap_files
 
             // 完成特征提取
             feature_vector_list multi_features = {0};
+            double t1_r = get_time_in_seconds();
             if (multi_extractor_finalize(multi_extractor, &multi_features) == EXTRACTOR_SUCCESS) {
+                double t2 = get_time_in_seconds();
+                extract_time += (t2 - t1_r);
+                
                 // 过滤特征
                 filtered_features filtered = {0};
                 if (filter_features(engine, &multi_features, &filtered) == 0 && filtered.count > 0) {

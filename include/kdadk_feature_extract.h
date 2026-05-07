@@ -14,6 +14,30 @@ Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 #define HASH_BUCKETS 65536
 #define DLT_EN10MB 1
 #define DLT_LINUX_SLL 113
+#ifndef ENABLE_HIST_REL
+#define ENABLE_HIST_REL 1
+#endif
+
+#ifndef ENABLE_HIST_ABS
+#define ENABLE_HIST_ABS 1
+#endif
+
+#ifndef ENABLE_HIST_NOR
+#define ENABLE_HIST_NOR 1
+#endif
+
+#define HISTOGRAM_NUMS 16
+#define HIST_FEATURE_COUNT (HISTOGRAM_NUMS * 2 * 3)
+#define BASE_FEATURES_NUM 66
+#define FEATURES_NUM ((BASE_FEATURES_NUM + \
+    (ENABLE_HIST_REL ? HIST_FEATURE_COUNT : 0) + \
+    (ENABLE_HIST_ABS ? HIST_FEATURE_COUNT : 0) + \
+    (ENABLE_HIST_NOR ? HIST_FEATURE_COUNT : 0)) + 1)
+
+#define SEND_PACKET_NUMS_INDEX 7
+#define HIST_TYPE_COUNT ((ENABLE_HIST_REL) + (ENABLE_HIST_ABS) + (ENABLE_HIST_NOR))
+#define HIST_FEATURE_PER_TYPE 48
+#define RECV_PACKET_NUMS_INDEX (21 + HIST_TYPE_COUNT * HIST_FEATURE_PER_TYPE)
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,7 +46,6 @@ extern "C" {
 typedef struct flow_hash flow_hash;
 typedef struct domain_name_hash domain_name_hash;
 
-#define FEATURES_NUM 355 /* 354 + 1 (flow_id在第0列) */
 #define RAWBOW_MAX_LEN 4096
 
 typedef struct {

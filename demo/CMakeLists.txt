@@ -4,6 +4,35 @@ project(kdadk_demo)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# ============= 直方图特征编译选项 =============
+option(ENABLE_HIST_REL "Enable relative histogram features output" ON)
+option(ENABLE_HIST_ABS "Enable absolute histogram features output" ON)
+option(ENABLE_HIST_NOR "Enable normalized histogram features output" ON)
+
+# 根据选项设置编译宏
+if(ENABLE_HIST_REL)
+    add_compile_definitions(ENABLE_HIST_REL=1)
+else()
+    add_compile_definitions(ENABLE_HIST_REL=0)
+endif()
+
+if(ENABLE_HIST_ABS)
+    add_compile_definitions(ENABLE_HIST_ABS=1)
+else()
+    add_compile_definitions(ENABLE_HIST_ABS=0)
+endif()
+
+if(ENABLE_HIST_NOR)
+    add_compile_definitions(ENABLE_HIST_NOR=1)
+else()
+    add_compile_definitions(ENABLE_HIST_NOR=0)
+endif()
+
+message(STATUS "Histogram features configuration:")
+message(STATUS "  ENABLE_HIST_REL: ${ENABLE_HIST_REL}")
+message(STATUS "  ENABLE_HIST_ABS: ${ENABLE_HIST_ABS}")
+message(STATUS "  ENABLE_HIST_NOR: ${ENABLE_HIST_NOR}")
+
 # 设置路径
 set(PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 set(KDADK_LIB_DIR ${PROJECT_ROOT}/lib)
@@ -23,7 +52,7 @@ find_library(ONNXRUNTIME_LIB
     NO_DEFAULT_PATH
     REQUIRED
 )
-
+  
 get_filename_component(ONNXRUNTIME_LIB_DIR ${ONNXRUNTIME_LIB} DIRECTORY)
 message(STATUS "Found ONNX Runtime library: ${ONNXRUNTIME_LIB}")
 message(STATUS "ONNX Runtime library directory: ${ONNXRUNTIME_LIB_DIR}")
@@ -76,7 +105,6 @@ add_executable(
     online_inference.cpp
     utils.cpp
 )
-
 # 链接库
 target_link_libraries(kdadk_demo
     ${KDADK_FEATURE_LIB}
