@@ -50,3 +50,50 @@
 |特性名称| 更新说明                                     |
 |--|------------------------------------------|
 |加密流量处理| 更新了特征提取及特征推理接口头文件及软件包，提供了鲲鹏BoostKit智能数据分析开发套件的网络流分类参考示例。  |
+
+## 版本配套文档
+### 版本配套文档
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left;">文档名称</th>
+      <th style="text-align: left;">内容简介</th>
+      <th style="text-align: left;">交付形式</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left;">1.0.0 版本说明书</td>
+      <td style="text-align: left;">提供KDADK-TOOLS的版本更新说明。</td>
+      <td style="text-align: left;">开源仓</td>
+    </tr>
+    <tr>
+      <td style="text-align: left;">快速入门</td>
+      <td style="text-align: left;">提供KDADK-TOOLS的demo示例快速使用方法。</td>
+      <td style="text-align: left;">开源仓</td>
+    </tr>
+    <tr>
+      <td style="text-align: left;">安装指南</td>
+      <td style="text-align: left;">提供KDADK-TOOLS的demo示例的依赖包安装及编译方法。</td>
+      <td style="text-align: left;">开源仓</td>
+    </tr>
+    <tr>
+      <td style="text-align: left;">用户指南</td>
+      <td style="text-align: left;">提供KDADK-TOOLS的demo示例、流量采集工具及流量打标签工具的详细用法。</td>
+      <td style="text-align: left;">开源仓</td>
+    </tr>
+    <tr>
+      <td style="text-align: left;">API参考</td>
+      <td style="text-align: left;">提供KDADK-TOOLS的特征提取和特征推理的接口说明。</td>
+      <td style="text-align: left;">开源仓</td>
+    </tr><tr>
+      <td style="text-align: left;">常见问题</td>
+      <td style="text-align: left;">列举KDADK-TOOLS的一些常见问题。</td>
+      <td style="text-align: left;">开源仓</td>
+    </tr>       
+  </tbody>
+</table>
+
+**获取文档的方法**<br>
+您可以通过访问[开源仓](https://gitcode.com/boostkit/KDADK-TOOLS/tree/master)浏览和获取相关文档。
