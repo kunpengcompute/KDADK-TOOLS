@@ -85,7 +85,7 @@ export LD_LIBRARY_PATH=$ONNXRUNTIME_HOME/lib:$LD_LIBRARY_PATH
 在`src/py/packages.txt`文件中记录了离线训练需要的python环境依赖，可以执行下述命令安装python环境依赖。
 
 ```bash
-# 在KDADK-TOOLS根目录下执行
+# 在/opt/KDADK-TOOLS/目录下执行
 pip install -r /opt/KDADK-TOOLS/src/py/packages.txt
 ```
 
