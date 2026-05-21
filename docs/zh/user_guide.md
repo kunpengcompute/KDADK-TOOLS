@@ -4,10 +4,15 @@
 
 ## 示例用法
 
-`kdadk_demo`可以使用`-h`参数查看程序功能，如下所示：
+`kdadk_demo`可以使用`-h`参数查看程序功能。
 
 ```bash
 /opt/KDADK-TOOLS/demo/build/kdadk_demo -h
+```
+
+出现下述回显:
+
+```bash
 用法: /opt/KDADK-TOOLS/demo/build/kdadk_demo [选项]
 
 选项:
@@ -211,10 +216,9 @@ filter_packets: 16
 
 ```bash
 sh capture_linux.sh -d 60 -n input -i eth0
-# -d 60  抓包时间为60秒。
-# -n input  输出文件名为input.pcap，具体路径可以参考终端输出信息。
-# -i eth0  从eth0网口抓取流量，使用-l来查看当前机器可用网口（up为可用）。
 ```
+其中 `-d 60` 表示抓包时间为60秒；`-n input` 表示输出文件名为`input.pcap`，具体路径可以参考终端输出信息；`i eth0`表示从eth0网口抓取流量，使用-l来查看当前机器可用网口（up为可用）。
+
 
 ### 2. 流量打标签工具
 
@@ -224,7 +228,11 @@ sh capture_linux.sh -d 60 -n input -i eth0
 
 ```bash
 python labeling.py -h
+```
 
+出现下述回显：
+
+```bash
 usage: labeling.py [-h] [--mode {train,inference}] [--config CONFIG]
 
 打标签工具
@@ -242,8 +250,10 @@ options:
 ```
 
 - config_label.yaml： 配置文件，可以配置打标签工具具体参数。
+
 > ❗**须知：** 
 > 在inference推理时限定只输入一个csv特征文件，用户可以根据自己的需要来修改推理源码中的`inference=False`入参来取消这一限定。
+
 ```bash
 # 流量打标签工具训练配置
 train:
@@ -295,5 +305,3 @@ inference:
 
 - results： 打标签工具结果输出位置，可在配置文件中修改。
 - output： 聚类预测结果输出文件夹，可在配置文件中修改。
-
-
