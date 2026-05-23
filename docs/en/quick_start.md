@@ -3,6 +3,7 @@
 KDADK-TOOLS provides a demo example. You can use the executable file `kdadk_demo` to demonstrate the feature extraction, model training, model verification, and online inference processes. For details, see [User Guide](user_guide.md).
 
 ## Feature Extraction
+
 The `-f` parameter indicates the feature extraction mode. The input is the collected traffic data in PCAP format, and the output is the feature data in CSV format. The input data `input.pcap` can be collected by using the [traffic collection tool](user_guide.md#1-traffic-collection-tools).
 
 ```bash
@@ -34,6 +35,7 @@ You can use the `feature_filter.py` script in the `data` directory to quickly pr
     ```
 
 ## Model Training
+
 The `-t` parameter indicates the model training mode. Configure the path to the CSV file required for model training in `src/config.yaml`. For details, see [Model Training](user_guide.md#1-model-training--t) in the user guide.
 
 ```bash
@@ -41,6 +43,7 @@ The `-t` parameter indicates the model training mode. Configure the path to the 
 ```
 
 ## Model Verification
+
 The `-e` parameter indicates the model verification mode. Configure the path to the CSV file required for model verification in `src/config.yaml`. For details, see [Model Verification](user_guide.md#2-model-verification--e) in the user guide.
 
 ```bash
@@ -48,24 +51,25 @@ The `-e` parameter indicates the model verification mode. Configure the path to 
 ```
 
 ## Online Inference
+
 The `-r` parameter indicates the online inference mode. Configure the path to the trained model weights in `src/config.yaml`. Ensure that the filtering criteria are the same as those used during model training. For details, see [Online Inference](user_guide.md#4-online-inference--r) in the user guide.
 
 The online inference mode supports two types of data input: offline PCAP data and real-time packet capture data on a network interface, specified by the `-p` and `-i` parameters, respectively.
 
-    1. The input is multiple PCAP files, the output is a CSV file containing the features and prediction results, and the -p parameter is used to specify the path to the PCAP files.
+case1: The input is multiple PCAP files, the output is a CSV file containing the features and prediction results, and the -p parameter is used to specify the path to the PCAP files.
 
-    ```bash
-    /opt/KDADK-TOOLS/demo/build/kdadk_demo -r /opt/KDADK-TOOLS/src/config.yaml -p file1.pcap -p file2.pcap -m 1 -c result.csv
-    ```
+```bash
+/opt/KDADK-TOOLS/demo/build/kdadk_demo -r /opt/KDADK-TOOLS/src/config.yaml -p file1.pcap -p file2.pcap -m 1 -c result.csv
+```
 
-    2. The input is real-time packet capture data on a network interface, the output is a CSV file containing the features and prediction results, and the -i parameter is used to specify the network interface name.
+case2: The input is real-time packet capture data on a network interface, the output is a CSV file containing the features and prediction results, and the -i parameter is used to specify the network interface name.
 
-    ```bash
-    /opt/KDADK-TOOLS/demo/build/kdadk_demo -r /opt/KDADK-TOOLS/src/config.yaml -i eth0 -c result.csv
-    ```
+```bash
+/opt/KDADK-TOOLS/demo/build/kdadk_demo -r /opt/KDADK-TOOLS/src/config.yaml -i eth0 -c result.csv
+```
 
-    You can run the following command to query the network interface information:
+You can run the following command to query the network interface information:
 
-    ```bash
-    /opt/KDADK-TOOLS/demo/build/kdadk_demo -l
-    ```
+```bash
+/opt/KDADK-TOOLS/demo/build/kdadk_demo -l
+```

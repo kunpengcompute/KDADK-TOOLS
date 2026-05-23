@@ -101,7 +101,7 @@ You can use the `feature_filter.py` script in the `data` directory to quickly pr
 
 ### 7. `config` Configuration File
 >
->![](public_sys-resources/icon-notice.gif) **NOTICE:**
+>❗**NOTICE:**
 > All paths can be absolute or relative paths. **Absolute paths are recommended**. When a relative path is used, the path starts from the root directory of the current repository by default.
 
 - `training_data_paths`: input data for **model training**. Each type of data is stored in an array. Different arrays represent different types of data. A type of data can be stored in multiple CSV files.
@@ -242,7 +242,7 @@ Examples:
 ```
 
 - `config_label.yaml`: configuration file, which can be used to configure the parameters of the labeling tool.
->![](public_sys-resources/icon-notice.gif) **NOTICE:**
+>❗**NOTICE:**
 > During inference, only one CSV feature file can be input. You can set `inference=False` in the inference source code as required to cancel this restriction.
 ```bash
 # Training configuration for the traffic labeling tool

@@ -1,6 +1,7 @@
 # FAQs
 
 ## What Protocols Are Supported During Feature Extraction?
+
 **Symptom**
 
 What protocols are supported during feature extraction?
