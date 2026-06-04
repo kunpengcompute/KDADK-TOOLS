@@ -2,11 +2,12 @@
 
 ## 最新消息
 
+\[2026-06-30\]: KDADK-APPID更名为KTAG。
 \[2026-03-30\]: 发布KDADK-APPID 1.0.0及KDADK-TOOLS 1.0.0。更新了KDADK-APPID网络流量分类库的特征提取及特征推理接口头文件及软件包，提供了鲲鹏BoostKit智能数据分析开发套件的网络流分类参考示例。
 
 ## 项目介绍
 
-KDADK-APPID是鲲鹏BoostKit智能数据分析开发套件的网络流分类库，包含流汇聚、协议检测、特征计算、AI引擎和训练工具包，针对鲲鹏特性进行极致亲和优化，在具备对明文流量分析能力的同时，亦能对加密流量进行实时分析，弥补传统基于规则检测的DPI方案无法分析加密流量的短板，为解决业界普遍难题提供端到端参考方案。
+KTAG是鲲鹏BoostKit智能数据分析开发套件的网络流分类库，包含流汇聚、协议检测、特征计算、AI引擎和训练工具包，针对鲲鹏特性进行极致亲和优化，在具备对明文流量分析能力的同时，亦能对加密流量进行实时分析，弥补传统基于规则检测的DPI方案无法分析加密流量的短板，为解决业界普遍难题提供端到端参考方案。
 
 KDADK-TOOLS是基于网络流分类库接口实现的demo示例，提供了特征提取及推理相关接口的使用示例；同时提供了一些工具用于流量采集、特征过滤、模型训练及自适应打标签。
 
@@ -69,7 +70,7 @@ KDADK-TOOLS的快速入门通过使用`kdadk_demo`来实现，具体请参见《
 | [安装指南](docs/zh/installation_guide.md) | 提供KDADK-TOOLS的demo示例的依赖包安装及编译方法。 |
 | [快速入门](docs/zh/quick_start.md) | 提供KDADK-TOOLS的demo示例快速使用方法。 |
 | [用户指南](docs/zh/user_guide.md)| 提供KDADK-TOOLS的demo示例、流量采集工具及流量打标签工具的详细用法。 |
-| [API参考](docs/zh/api_reference.md) | 提供KDADK-APPID的特征提取和特征推理的接口说明。 |
+| [API参考](docs/zh/api_reference.md) | 提供KTAG的特征提取和特征推理的接口说明。 |
 | [常见问题](docs/zh/faq.md) | 列举KDADK-TOOLS的一些常见问题。 |
 
 ## 贡献声明

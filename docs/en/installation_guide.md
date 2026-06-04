@@ -91,7 +91,7 @@ pip install -r /opt/KDADK-TOOLS/src/py/packages.txt
 
 ### 4. Preparing feature extraction and inference libraries
 
-Downloaded [KDADK-APPID](https://gitcode.com/boostkit/KDADK-TOOLS/releases/download/v1.0.0/KDADK-1.0.0.zip).
+Downloaded [KTAG](https://gitcode.com/boostkit/KDADK-TOOLS/releases/download/v1.0.0/KDADK-1.0.0.zip).
 
 ```bash
 # Run the following command in /opt/KDADK-TOOLS/:

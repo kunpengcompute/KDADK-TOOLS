@@ -4,6 +4,7 @@
 
 |文档版本|发布日期|修改说明|
 |--|--|--|
+|02|2026-06-30|KDADK-APPID更名为KTAG。|
 |01|2026-03-30|第一次正式发布。更新了KDADK-APPID网络流量分类库的特征提取及特征推理接口头文件及软件包，提供了鲲鹏BoostKit智能数据分析开发套件的网络流分类参考示例。|
 
 ## 版本配套说明
@@ -41,7 +42,7 @@
 |openEuler 22.03 LTS SP4|鲲鹏920新型号处理器|GCC 10.3.1|
 |openEuler 24.03 LTS SP2|鲲鹏920新型号处理器|GCC 10.3.1|
 
-## V1.1.0
+## V1.0.0
 
 ### 更新说明
 
@@ -86,7 +87,7 @@
     </tr>
     <tr>
       <td style="text-align: left;">API参考</td>
-      <td style="text-align: left;">提供KDADK-APPID的特征提取和特征推理的接口说明。</td>
+      <td style="text-align: left;">提供KTAG的特征提取和特征推理的接口说明。</td>
       <td style="text-align: left;">开源仓</td>
     </tr><tr>
       <td style="text-align: left;">常见问题</td>
