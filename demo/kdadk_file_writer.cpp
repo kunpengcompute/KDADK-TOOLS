@@ -57,17 +57,23 @@ static int write_csv_header(FILE *fp, write_mode mode)
             fprintf(fp, "%s_%s_mean,", direct[i], type[j]);
             fprintf(fp, "%s_%s_var,", direct[i], type[j]);
 
+#if ENABLE_HIST_REL
             for (int k = 0; k < HISTOGRAM_NUMS; k++) {
                 fprintf(fp, "%s_%s_hist_rel_%d,", direct[i], type[j], k);
             }
+#endif
 
+#if ENABLE_HIST_ABS
             for (int k = 0; k < HISTOGRAM_NUMS; k++) {
                 fprintf(fp, "%s_%s_hist_abs_%d,", direct[i], type[j], k);
             }
+#endif
 
+#if ENABLE_HIST_NOR
             for (int k = 0; k < HISTOGRAM_NUMS; k++) {
                 fprintf(fp, "%s_%s_hist_nor_%d,", direct[i], type[j], k);
             }
+#endif
         }
     }
 
@@ -114,17 +120,23 @@ static int write_csv_header_with_rawbow(FILE *fp)
             fprintf(fp, "%s_%s_mean,", direct[i], type[j]);
             fprintf(fp, "%s_%s_var,", direct[i], type[j]);
 
+#if ENABLE_HIST_REL
             for (int k = 0; k < HISTOGRAM_NUMS; k++) {
                 fprintf(fp, "%s_%s_hist_rel_%d,", direct[i], type[j], k);
             }
+#endif
 
+#if ENABLE_HIST_ABS
             for (int k = 0; k < HISTOGRAM_NUMS; k++) {
                 fprintf(fp, "%s_%s_hist_abs_%d,", direct[i], type[j], k);
             }
+#endif
 
+#if ENABLE_HIST_NOR
             for (int k = 0; k < HISTOGRAM_NUMS; k++) {
                 fprintf(fp, "%s_%s_hist_nor_%d,", direct[i], type[j], k);
             }
+#endif
         }
     }
 
