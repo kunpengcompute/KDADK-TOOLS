@@ -4,6 +4,7 @@
 
 |Version|Date|Description|
 |--|--|--|
+|02|2026-06-30|KDADK-APPID renamed to KTAG. |
 |01|2026-03-30|This issue is the first official release. It updated the header files and software packages of the feature extraction and inference APIs, and provided a reference example for network flow classification of Kunpeng BoostKit for Intelligent Data Analytics.|
 
 ## Version Requirements

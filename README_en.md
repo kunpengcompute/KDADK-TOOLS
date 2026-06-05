@@ -2,11 +2,12 @@
 
 ## Latest Updates
 
+[2026-06-30]: KDADK-APPID has been renamed KTAG.
 [2026-03-30]: Released KDADK-TOOLS 1.0.0, updated the header files and software packages of the feature extraction and inference APIs, and provided a reference example for network flow classification of Kunpeng BoostKit for Intelligent Data Analytics (IDA).
 
 ## Project Introduction
 
-KDADK-APPID is the network flow classification library of Kunpeng BoostKit for IDA. It includes flow aggregation, protocol detection, feature calculation, an AI engine, and a training tool package. It is optimized for Kunpeng features and can analyze both plaintext and encrypted traffic in real time. This addresses the limitations of conventional rule-based data distribution solutions that cannot analyze encrypted traffic, providing an end-to-end reference solution for the industry's common challenges.
+KTAG is the network flow classification library of Kunpeng BoostKit for IDA. It includes flow aggregation, protocol detection, feature calculation, an AI engine, and a training tool package. It is optimized for Kunpeng features and can analyze both plaintext and encrypted traffic in real time. This addresses the limitations of conventional rule-based data distribution solutions that cannot analyze encrypted traffic, providing an end-to-end reference solution for the industry's common challenges.
 KDADK-TOOLS is a demo implemented based on the APIs of the network flow classification library. It provides examples of using feature extraction and inference APIs, and tools for traffic collection, feature filtering, model training, and adaptive labeling.
 
 ## Directory Structure
@@ -63,7 +64,7 @@ KDADK-TOOLS can function properly on new Kunpeng 920 processor models running op
 | yaml-cpp | 0.8.0 |
 | ONNX Runtime| 1.22.0 |
 | Python | 3.9.9 or later|
-| KDADK-APPID | 1.0.0 |
+| KTAG | 1.0.0 |
 
 For details about the installation method, see [Installation Guide](docs/en/installation_guide.md).
 

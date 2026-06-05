@@ -22,7 +22,7 @@ KDADK-TOOLS当前适配的处理器和操作系统为鲲鹏920新型号处理器
 | yaml-cpp | 0.8.0 |
 | onnxruntime| 1.22.0 |
 | Python | 3.9.9及以上 |
-| KDADK-APPID | 1.0.0 |
+| KTAG | 1.0.0 |
 
 ## 获取项目代码
 
@@ -94,7 +94,7 @@ pip install -r /opt/KDADK-TOOLS/src/py/packages.txt
 
 ### 4. 配置特征提取和推理库
 
-下载[KDADK-APPID](https://gitcode.com/boostkit/KDADK-TOOLS/releases/download/v1.0.0/KDADK-1.0.0.zip
+下载[KTAG](https://gitcode.com/boostkit/KDADK-TOOLS/releases/download/v1.0.0/KDADK-1.0.0.zip
 )动态库，执行下述命令进行配置。
 
 ```bash
