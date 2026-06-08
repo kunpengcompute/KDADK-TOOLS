@@ -242,8 +242,10 @@ Examples:
 ```
 
 - `config_label.yaml`: configuration file, which can be used to configure the parameters of the labeling tool.
+
 >❗**NOTICE:**
 > During inference, only one CSV feature file can be input. You can set `inference=False` in the inference source code as required to cancel this restriction.
+
 ```bash
 # Training configuration for the traffic labeling tool
 train:

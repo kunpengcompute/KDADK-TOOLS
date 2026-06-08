@@ -3,6 +3,7 @@
 ## Latest Updates
 
 [2026-06-30]: KDADK-APPID has been renamed KTAG.
+
 [2026-03-30]: Released KDADK-TOOLS 1.0.0, updated the header files and software packages of the feature extraction and inference APIs, and provided a reference example for network flow classification of Kunpeng BoostKit for Intelligent Data Analytics (IDA).
 
 ## Project Introduction

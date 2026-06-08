@@ -217,8 +217,8 @@ filter_packets: 16
 ```bash
 sh capture_linux.sh -d 60 -n input -i eth0
 ```
-其中 `-d 60` 表示抓包时间为60秒；`-n input` 表示输出文件名为`input.pcap`，具体路径可以参考终端输出信息；`i eth0`表示从eth0网口抓取流量，使用-l来查看当前机器可用网口（up为可用）。
 
+其中 `-d 60` 表示抓包时间为60秒；`-n input` 表示输出文件名为`input.pcap`，具体路径可以参考终端输出信息；`i eth0`表示从eth0网口抓取流量，使用-l来查看当前机器可用网口（up为可用）。
 
 ### 2. 流量打标签工具
 
