@@ -40,7 +40,7 @@ cd KDADK-TOOLS
 
 下载源码包[yaml-cpp](https://github.com/jbeder/yaml-cpp/archive/refs/tags/0.8.0.tar.gz)。
 
-将下载好的源码放在`/opt/KDADK-TOOLS/util/`文件夹下，解压压缩包，然后进入到进到`yaml-cpp-0.8.0`文件夹下，进行编译安装。
+将下载好的源码放在`/opt/KDADK-TOOLS/util/`文件夹下，解压压缩包，然后进到`yaml-cpp-0.8.0`文件夹下，进行编译安装。
 
 ```bash
 tar -xzf yaml-cpp-0.8.0.tar.gz
@@ -111,7 +111,6 @@ unzip KDADK-1.0.0.zip
 
 ```bash
 cd /opt/KDADK-TOOLS/demo/
-cd demo
 mkdir build
 cd build
 cmake ..

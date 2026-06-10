@@ -2,7 +2,7 @@
 
 ## 特征提取时支持哪些协议类型？
 
-目前特征提取时只支持TCP和UDP协议，其他协议的包会默认丢弃。在demo示例的在线推理模式中如果使用非TCP/UDP协议pcap数据（如ICMP协议数据）时，会在特征提取时把不符合要求的包都丢弃，例如下面的例子：
+目前特征提取时只支持TCP和UDP协议，其他协议的包会默认丢弃。在demo示例的在线推理模式中如果使用非TCP/UDP协议pcap数据（如ICMP协议数据）时，会在特征提取时把不符合要求的包都丢弃，例如：
 
 ```bash
 [root@ceph1 KDADK-TOOLS]# /opt/KDADK-TOOLS/demo/build/kdadk_demo -r /opt/KDADK-TOOLS/src/config.yaml -m 0 -p /root/icmp_data.pcap -c result.csv

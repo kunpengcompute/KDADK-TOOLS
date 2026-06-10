@@ -11,9 +11,9 @@
 
 **函数接口**
 
-````bash
+```c
 feature_extractor *extractor_init(int link_type);
-````
+```
 
 **参数**
 
@@ -31,9 +31,9 @@ feature_extractor *extractor_init(int link_type);
 
 **函数接口**
 
-````bash
+```c
 void extractor_destroy(feature_extractor *extractor);
-````
+```
 
 **参数**
 
@@ -51,10 +51,10 @@ void extractor_destroy(feature_extractor *extractor);
 
 **函数接口**
 
-````bash
+```c
 int process_packet(feature_extractor *extractor, const unsigned char *packet, uint32_t packet_len,
                    const struct timeval *ts, feature_vector *features, int *has_feature);
-````
+```
 
 **参数**
 
@@ -77,10 +77,10 @@ int process_packet(feature_extractor *extractor, const unsigned char *packet, ui
 
 **函数接口**
 
-````bash
+```c
 int process_packet_with_rawbow(feature_extractor *extractor, const unsigned char *packet, uint32_t packet_len,
                                const struct timeval *ts, feature_vector *features, rawbow *rawbows, int *has_feature);
-````
+```
 
 **参数**
 
@@ -104,9 +104,9 @@ int process_packet_with_rawbow(feature_extractor *extractor, const unsigned char
 
 **函数接口**
 
-````bash
+```c
 int extractor_finalize(feature_extractor *extractor, feature_vector_list *features);
-````
+```
 
 **参数**
 
@@ -125,9 +125,9 @@ int extractor_finalize(feature_extractor *extractor, feature_vector_list *featur
 
 **函数接口**
 
-````bash
+```c
 int extractor_finalize_with_rawbow(feature_extractor *extractor, feature_vector_list *features, rawbow_list *rawbows);
-````
+```
 
 **参数**
 
@@ -147,14 +147,14 @@ int extractor_finalize_with_rawbow(feature_extractor *extractor, feature_vector_
 
 **函数接口**
 
-````bash
+```c
 int extractor_get_statistics(feature_extractor *extractor, statistics *stats);
-````
+```
 
 **参数**
 
 * `extractor`：  特征提取器句柄。
-* `stats`：   stats 输出统计信息。  
+* `stats`：   输出统计信息。  
 
 **返回值**
 
@@ -168,9 +168,9 @@ int extractor_get_statistics(feature_extractor *extractor, statistics *stats);
 
 **函数接口**
 
-````bash
+```c
 void extractor_reset_statistics(feature_extractor *extractor);
-````
+```
 
 **参数**
 
@@ -190,13 +190,13 @@ void extractor_reset_statistics(feature_extractor *extractor);
 
 **函数接口**
 
-````bash
+```c
 inference_engine *inference_init(const inference_config *config);
-````
+```
 
 **参数**
 
-* `config_file`：推理配置（包含配置文件路径）。
+* `config`：推理配置（包含配置文件路径）。
 
 **返回值**
 
@@ -210,9 +210,9 @@ inference_engine *inference_init(const inference_config *config);
 
 **函数接口**
 
-````bash
+```c
 void inference_destroy(inference_engine *engine);
-````
+```
 
 **参数**
 
@@ -230,9 +230,9 @@ void inference_destroy(inference_engine *engine);
 
 **函数接口**
 
-````bash
+```c
 int inference_predict(inference_engine *engine, const feature_vector_list *features, inference_result *result);
-````
+```
 
 **参数**
 

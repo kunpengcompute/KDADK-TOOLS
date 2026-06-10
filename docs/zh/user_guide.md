@@ -73,7 +73,7 @@
 - 输出：将特征提取结果保存在文件中，`-c output.csv`或`-j output.json`，两者二选一。
 - 可选参数：使用`-w`选择输出带rawbow信息，rawbow特征列信息仅用于流量打标签进行人工校验。
 - 对特征提取以后的CSV文件进行数据过滤：
-  - 过滤总packets数小于16以下的流（特征行）。
+  - 过滤总packets数小于16的流（特征行）。
   - 删除flow_id、src_ip和dst_ip列。
 可以使用data目录下的脚本快速处理：`feature_filter.py`，需要指定config.yaml文件路径和数据文件夹路径。读取config配置文件中的过滤条件：`columns_to_remove、filter_packets`。如果特征提取时选择了输出rawbow信息，那么在数据过滤时需要增加对这一列的过滤操作（在columns_to_remove的列表中增加354），模型训练和验证时不支持rawbow特征列的输入。在线推理模式默认会过滤掉rawbow特征列。
 
@@ -88,7 +88,7 @@
 - config参数：`model_path_onnx、scaler_path_json、onnx_log_level、columns_to_remove、filter_packets`。
 - 输入数据源：
   - `-p xxx.pcap`：
-      - 从pcap文件读取，支持多个-p指定输入pcap文件，可以指定多个pcap文件输入。
+      - 从pcap文件读取，支持使用多个-p，可以指定多个pcap文件输入。
       - 使用`-m 0/1/2`指定使用的推理模式，其中0代表单flow模式, 1代表批处理模式, 2代表文件模式，默认为批处理模式。
       - 输出分类报告及分类结果，分类结果数据输出需要指定文件路径，分类报告保存在默认路径。
   - `-i interface`：从网口实时抓取流量进行特征提取及推理；可选输出分类结果；网口可以使用-l参数来进行查询。
@@ -111,75 +111,75 @@
 
 - **`training_data_paths`**：**模型训练**数据输入，每一类数据置于一个数组中，不同数组代表不同类别，一类数据可以存放多个csv文件。
 
-```bash
+```yaml
 training_data_paths:
 - [
-  'data/bilibili/csv/bilibili_20250616_204043_10h_android_16.csv',
-  'data/bilibili/csv/bilibili_20250716_101749_5h_android_18.csv',
-  'data/bilibili/csv/bilibili_20250717_191237_50400_android_17.csv',
-  'data/bilibili/csv/bilibili_20250718_101704_25200_android_19.csv'
+  'data/aaa/csv/aaa_20250616_204043_10h_android_16.csv',
+  'data/aaa/csv/aaa_20250716_101749_5h_android_18.csv',
+  'data/aaa/csv/aaa_20250717_191237_50400_android_17.csv',
+  'data/aaa/csv/aaa_20250718_101704_25200_android_19.csv'
 ]
 - [
-  'data/wenxiaoyan/csv/wenxiaoyan_20250726_172552_129600_android_16.csv',
-  'data/wenxiaoyan/csv/wenxiaoyan_20250804_204806_144000_android_17.csv',
-  'data/wenxiaoyan/csv/wenxiaoyan_20250804_205024_144000_android_18.csv',
-  'data/wenxiaoyan/csv/wenxiaoyan_20250804_205029_144000_android_19.csv'
+  'data/bbb/csv/bbb_20250726_172552_129600_android_16.csv',
+  'data/bbb/csv/bbb_20250804_204806_144000_android_17.csv',
+  'data/bbb/csv/bbb_20250804_205024_144000_android_18.csv',
+  'data/bbb/csv/bbb_20250804_205029_144000_android_19.csv'
 ]
 ```
 
 - **`model_path_pkl`**：训练后的模型权重输出路径，同时也是模型评估（python）的输入路径。
 
-```bash
+```yaml
 model_path_pkl: result/model_classifier_2.pkl
 ```
 
 - **`scaler_path_pkl`**：训练后的标准化器权重输出路径，同时也是模型评估（python）的输入路径。
 
-```bash
+```yaml
 scaler_path_pkl: result/scaler_2.pkl
 ```
 
 - **`model_path_onnx`**：训练后的模型权重输出路径，同时也是模型评估（C++）的输入路径。
 
-```bash
+```yaml
 model_path_onnx: result/model_classifier_2.onnx
 ```
 
 - **`scaler_path_json`**：训练后的标准化器权重输出路径，同时也是模型评估（C++）的输入路径。
 
-```bash
+```yaml
 scaler_path_json: result/scaler_2.json
 ```
 
 - **`evaluation_data_paths`**：**模型评估**数据输入，每一类数据置于一个数组中，不同数组代表不同类别，一类数据可以存放多个csv文件。
 
-```bash
+```yaml
 evaluation_data_paths:
-  - ['data/bilibili/csv/bilibili_20250721_141827_21600_android_20.csv']
-  - ['data/wenxiaoyan/csv/wenxiaoyan_20250804_205038_144000_android_20.csv']
+  - ['data/aaa/csv/aaa_20250721_141827_21600_android_20.csv']
+  - ['data/bbb/csv/bbb_20250804_205038_144000_android_20.csv']
 ```
 
 - **`output_dir`**：模型评估结果输出文件夹。
 
-```bash
+```yaml
 output_dir: result
 ```
 
 - **`classification_report_file`**：流分类报告结果路径。
 
-```bash
+```yaml
 classification_report_file: result/classification_report_2.txt
 ```
 
 - **`predictions_detail_file`**：流分类详细结果路径。
 
-```bash
+```yaml
 predictions_detail_file: result/predictions_detail_2.csv
 ```
 
 - **`onnx_log_level`**：ONNX运行时配置。
 
-```bash
+```yaml
 onnx_log_level: WARNING
 # VERBOSE   详细信息
 # INFO      一般信息
@@ -190,13 +190,13 @@ onnx_log_level: WARNING
 
 - **`columns_to_remove`**：特征推理前对特征提取的结果进行过滤，列表中的数字表示特征列的下标减1，默认为0、1、2，其中第0列是flow_id,第1列是src_ip,第2列是dst_ip。用户可以自行调整，但是需要保证模型训练和模型推理时保持一致。
 
-```bash
+```yaml
 columns_to_remove: [0, 1, 2]
 ```
 
-- **`filter_packets`**：特征推理前对特征提取的结果进行过滤，这里需要对send_packet_nums和receive_packet_nums之和小于filter_packets特征行进行过滤，默认值为16。用户可以自行调整，但是需要保证模型训练和模型推理时保持一致。
+- **`filter_packets`**：特征推理前对特征提取的结果进行过滤，这里需要对send_packet_nums和receive_packet_nums之和小于filter_packets的特征行进行过滤，默认值为16。用户可以自行调整，但是需要保证模型训练和模型推理时保持一致。
 
-```bash
+```yaml
 filter_packets: 16
 ```
 
@@ -208,17 +208,17 @@ filter_packets: 16
 
 流量采集工具位于`tools/capture/`目录下，有以下几个文件。
 
-- `capture_win.ps1`           windows环境下使用wireshark来抓包，确保使用前安装wireshark，具体用法可以参考 `./capture_win.ps1 -h`。
-- `capture_linux.sh`          linux环境下使用tcpdump来抓包，确保使用前安装tcpdump，具体用法可以参考 `sh capture_linux.sh -h`。
-- `capture_linux_docker.sh`   linux环境下在docker容器中使用tcpdump来抓包，确保docker环境正确，具体用法可以参考 `sh capture_linux_docker.sh -h`。
+- `capture_win.ps1`           Windows环境下使用wireshark来抓包，确保使用前安装wireshark，具体用法可以参考 `./capture_win.ps1 -h`。
+- `capture_linux.sh`          Linux环境下使用tcpdump来抓包，确保使用前安装tcpdump，具体用法可以参考 `sh capture_linux.sh -h`。
+- `capture_linux_docker.sh`   Linux环境下在docker容器中使用tcpdump来抓包，确保docker环境正确，具体用法可以参考 `sh capture_linux_docker.sh -h`。
 
-在linux环境下使用`capture_linux.sh`来进行示范：
+在Linux环境下使用`capture_linux.sh`来进行示范：
 
 ```bash
 sh capture_linux.sh -d 60 -n input -i eth0
 ```
 
-其中 `-d 60` 表示抓包时间为60秒；`-n input` 表示输出文件名为`input.pcap`，具体路径可以参考终端输出信息；`i eth0`表示从eth0网口抓取流量，使用-l来查看当前机器可用网口（up为可用）。
+其中 `-d 60` 表示抓包时间为60秒；`-n input` 表示输出文件名为`input.pcap`，具体路径可以参考终端输出信息；`-i eth0`表示从eth0网口抓取流量，使用-l来查看当前机器可用网口（up为可用）。
 
 ### 2. 流量打标签工具
 
@@ -254,20 +254,20 @@ options:
 > ❗**须知：** 
 > 在inference推理时限定只输入一个csv特征文件，用户可以根据自己的需要来修改推理源码中的`inference=False`入参来取消这一限定。
 
-```bash
+```yaml
 # 流量打标签工具训练配置
 train:
 # 参与训练的数据，每个路径下可以有多个特征提取csv文件，同时支持字典模式，可以配置path和name
   data_paths: [
-    'data/youku/csv',
-    'data/yuanbao/csv',
-    'data/wymusic/csv'
+    'data/video/csv',
+    'data/text/csv',
+    'data/music/csv'
   ]
 
 # data_paths: [
-# {'path': 'data/youku/csv', 'name': 'video'}
-# {'path': 'data/yuanbao/csv', 'name': 'text'}
-# {'path': 'data/wymusic/csv', 'name': 'music'}
+# {'path': 'data/video/csv', 'name': 'video'}
+# {'path': 'data/text/csv', 'name': 'text'}
+# {'path': 'data/music/csv', 'name': 'music'}
 # ]
 
 # 当前训练模型权重名
@@ -287,9 +287,9 @@ inference:
 
 # 参与推理的数据，每个路径下可以有多个特征提取csv文件，同时支持字典模式，可以配置path和name
   data_paths: [
-    'data/youku/csv',
-    'data/yuanbao/csv',
-    'data/wymusic/csv'
+    'data/video/csv',
+    'data/text/csv',
+    'data/music/csv'
   ]
 
 # 加载预训练模型权重路径

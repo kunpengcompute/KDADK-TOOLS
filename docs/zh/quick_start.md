@@ -26,7 +26,7 @@ File writer destroyed
 ```
 
 - 对特征提取以后的CSV文件进行数据过滤：
-  - 过滤总packets数小于16以下的流（特征行）
+  - 过滤总packets数小于16的流（特征行）
   - 删除flow_id、src_ip和dst_ip列
 可以使用`data`目录下的脚本快速处理：`feature_filter.py`，需要指定配置文件路径和数据文件夹路径（特征提取输出的csv文件所在目录）。
 
@@ -52,11 +52,11 @@ File writer destroyed
 
 ## 在线推理
 
-使用 `-r` 参数指定为在线推理模式。在`src/config.yaml`中配置训练好的模型权重路径，保持过滤条件和模型训练时一致。可参考用户指南的[在线推理](user_guide.md#4-在线推理--r)章节。
+使用 `-r` 参数指定为在线推理模式。在`src/config.yaml`中配置训练好的模型权重路径，保持过滤条件和模型训练时的一致。可参考用户指南的[在线推理](user_guide.md#4-在线推理--r)章节。
 
 在线推理模式支持两种数据输入方式：离线pcap数据和网口实时抓包数据，分别使用`-p`参数和`-i`参数指定。
 
-方式1: 输入为多个PCAP文件，输出特征及预测结果的CSV文件，使用-p参数指定pcap文件路径。
+方式1: 输入为多个pcap文件，输出特征及预测结果的CSV文件，使用-p参数指定pcap文件路径。
 
 ```bash
 /opt/KDADK-TOOLS/demo/build/kdadk_demo -r /opt/KDADK-TOOLS/src/config.yaml -p file1.pcap -p file2.pcap -m 1 -c result.csv

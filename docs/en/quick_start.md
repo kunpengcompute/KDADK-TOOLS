@@ -56,13 +56,13 @@ The `-r` parameter indicates the online inference mode. Configure the path to th
 
 The online inference mode supports two types of data input: offline PCAP data and real-time packet capture data on a network interface, specified by the `-p` and `-i` parameters, respectively.
 
-case1: The input is multiple PCAP files, the output is a CSV file containing the features and prediction results, and the -p parameter is used to specify the path to the PCAP files.
+Case1: The input is multiple PCAP files, the output is a CSV file containing the features and prediction results, and the -p parameter is used to specify the path to the PCAP files.
 
 ```bash
 /opt/KDADK-TOOLS/demo/build/kdadk_demo -r /opt/KDADK-TOOLS/src/config.yaml -p file1.pcap -p file2.pcap -m 1 -c result.csv
 ```
 
-case2: The input is real-time packet capture data on a network interface, the output is a CSV file containing the features and prediction results, and the -i parameter is used to specify the network interface name.
+Case2: The input is real-time packet capture data on a network interface, the output is a CSV file containing the features and prediction results, and the -i parameter is used to specify the network interface name.
 
 ```bash
 /opt/KDADK-TOOLS/demo/build/kdadk_demo -r /opt/KDADK-TOOLS/src/config.yaml -i eth0 -c result.csv
