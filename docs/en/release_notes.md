@@ -55,7 +55,6 @@
 ## Related Documentation
 
 ### Related Documentation
-<font size=3>
 
 <table>
   <thead>
