@@ -57,13 +57,13 @@
 ### 模型训练 (-t)
 
 - 参数：`-t config.yaml`
-- 功能：读取[config配置](#7-config配置)文件，调用模型训练脚本（Python），执行模型训练任务。
+- 功能：读取[config配置](#config配置)文件，调用模型训练脚本（Python），执行模型训练任务。
 - config参数：`training_data_paths、model_path_pkl、scaler_path_pkl、model_path_onnx、scaler_path_json`。
 
 ### 模型验证 (-e)
 
 - 参数：`-e config.yaml`
-- 功能：读取[config配置](#7-config配置)文件，调用模型验证脚本（Python），执行模型验证。
+- 功能：读取[config配置](#config配置)文件，调用模型验证脚本（Python），执行模型验证。
 - config参数：`evaluation_data_paths、model_path_pkl、scaler_path_pkl、output_dir、classification_report_file、predictions_detail_file`。
 
 ### 特征提取 (-f)
@@ -84,7 +84,7 @@
 ### 在线推理 (-r)
 
 - 参数：`-r config.yaml`
-- 功能：读取[config配置](#7-config配置)文件，调用推理模块，执行在线推理任务，包括特征提取、数据过滤、特征推理。
+- 功能：读取[config配置](#config配置)文件，调用推理模块，执行在线推理任务，包括特征提取、数据过滤、特征推理。
 - config参数：`model_path_onnx、scaler_path_json、onnx_log_level、columns_to_remove、filter_packets`。
 - 输入数据源：
   - `-p xxx.pcap`：
@@ -106,10 +106,10 @@
 
 ### config配置
 >
-> ❗**须知：** 
+> **须知：** 
 > 所有路径支持绝对路径和相对路径，**推荐使用绝对路径**，在使用相对路径时默认从当前仓库根目录下算起。
 
-- **`training_data_paths`**：**模型训练**数据输入，每一类数据置于一个数组中，不同数组代表不同类别，一类数据可以存放多个csv文件。
+- **`training_data_paths`**：**模型训练**数据输入，每一类数据置于一个数组中，不同数组代表不同类别，一类数据可以存放在多个csv文件。
 
 ```yaml
 training_data_paths:
@@ -151,7 +151,7 @@ model_path_onnx: result/model_classifier_2.onnx
 scaler_path_json: result/scaler_2.json
 ```
 
-- **`evaluation_data_paths`**：**模型评估**数据输入，每一类数据置于一个数组中，不同数组代表不同类别，一类数据可以存放多个csv文件。
+- **`evaluation_data_paths`**：**模型评估**数据输入，每一类数据置于一个数组中，不同数组代表不同类别，一类数据可以存放在多个csv文件。
 
 ```yaml
 evaluation_data_paths:
