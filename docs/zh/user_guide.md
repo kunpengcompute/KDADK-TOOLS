@@ -54,19 +54,19 @@
 
 其中核心功能模块有：模型训练(-t)、模型验证(-e)、特征提取(-f)、在线推理(-r)。
 
-### 1. 模型训练 (-t)
+### 模型训练 (-t)
 
 - 参数：`-t config.yaml`
 - 功能：读取[config配置](#7-config配置)文件，调用模型训练脚本（Python），执行模型训练任务。
 - config参数：`training_data_paths、model_path_pkl、scaler_path_pkl、model_path_onnx、scaler_path_json`。
 
-### 2. 模型验证 (-e)
+### 模型验证 (-e)
 
 - 参数：`-e config.yaml`
 - 功能：读取[config配置](#7-config配置)文件，调用模型验证脚本（Python），执行模型验证。
 - config参数：`evaluation_data_paths、model_path_pkl、scaler_path_pkl、output_dir、classification_report_file、predictions_detail_file`。
 
-### 3. 特征提取 (-f)
+### 特征提取 (-f)
 
 - 参数：`-f xxx.pcap -c output.csv`或`-f xxx.pcap -j output.json`
 - 功能：输入pcap离线网络流量，进行协议解析及特征提取。
@@ -81,7 +81,7 @@
     python /opt/KDADK-TOOLS/data/feature_filter.py /opt/KDADK-TOOLS/src/config.yaml /path/to/csv_data_folder
     ```
 
-### 4. 在线推理 (-r)
+### 在线推理 (-r)
 
 - 参数：`-r config.yaml`
 - 功能：读取[config配置](#7-config配置)文件，调用推理模块，执行在线推理任务，包括特征提取、数据过滤、特征推理。
@@ -94,17 +94,17 @@
   - `-i interface`：从网口实时抓取流量进行特征提取及推理；可选输出分类结果；网口可以使用-l参数来进行查询。
 - 输出：将分类结果输出到文件中，`-c output.csv`或`-j output.json`，两者二选一。
 
-### 5. 查看网口 (-l)
+### 查看网口 (-l)
 
 - 参数：`-l`
 - 功能：列出当前服务器网口信息。
 
-### 6. 帮助信息(-h)
+### 帮助信息(-h)
 
 - 参数：`-h`
 - 功能：查看参数使用帮助信息。
 
-### 7. config配置
+### config配置
 >
 > ❗**须知：** 
 > 所有路径支持绝对路径和相对路径，**推荐使用绝对路径**，在使用相对路径时默认从当前仓库根目录下算起。
@@ -204,7 +204,7 @@ filter_packets: 16
 
 本仓库提供两个工具供用户使用：流量采集工具和流量打标签工具，位于`KDADK-TOOLS/tools/`，下面分别介绍用法。
 
-### 1. 流量采集工具
+### 流量采集工具
 
 流量采集工具位于`tools/capture/`目录下，有以下几个文件。
 
@@ -220,7 +220,7 @@ sh capture_linux.sh -d 60 -n input -i eth0
 
 其中 `-d 60` 表示抓包时间为60秒；`-n input` 表示输出文件名为`input.pcap`，具体路径可以参考终端输出信息；`-i eth0`表示从eth0网口抓取流量，使用-l来查看当前机器可用网口（up为可用）。
 
-### 2. 流量打标签工具
+### 流量打标签工具
 
 流量打标签工具位于`tools/labeling/`目录下，有以下几个文件：
 

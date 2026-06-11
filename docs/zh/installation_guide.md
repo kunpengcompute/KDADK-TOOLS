@@ -36,76 +36,72 @@ cd KDADK-TOOLS
 
 ## 依赖准备
 
-### 1. 安装yaml-cpp
+1. 安装yaml-cpp。
 
-下载源码包[yaml-cpp](https://github.com/jbeder/yaml-cpp/archive/refs/tags/0.8.0.tar.gz)。
+    下载源码包[yaml-cpp](https://github.com/jbeder/yaml-cpp/archive/refs/tags/0.8.0.tar.gz)，将下载好的源码放在`/opt/KDADK-TOOLS/util/`文件夹下，解压压缩包，然后进到`yaml-cpp-0.8.0`文件夹下，进行编译安装。
 
-将下载好的源码放在`/opt/KDADK-TOOLS/util/`文件夹下，解压压缩包，然后进到`yaml-cpp-0.8.0`文件夹下，进行编译安装。
+    ```bash
+    tar -xzf yaml-cpp-0.8.0.tar.gz
+    cd yaml-cpp-0.8.0
+    mkdir -p build
+    cd build
+    cmake .. -DYAML_BUILD_SHARED_LIBS=ON
+    make -j32
+    make install
+    ```
 
-```bash
-tar -xzf yaml-cpp-0.8.0.tar.gz
-cd yaml-cpp-0.8.0
-mkdir -p build
-cd build
-cmake .. -DYAML_BUILD_SHARED_LIBS=ON
-make -j32
-make install
-```
+    出现下述回显即为成功：
 
-出现下述回显即为成功：
+    ```bash
+    ...
+    -- Installing: /usr/local/include/yaml-cpp/binary.h
+    -- Installing: /usr/local/include/yaml-cpp/anchor.h
+    -- Installing: /usr/local/include/yaml-cpp/eventhandler.h
+    -- Installing: /usr/local/include/yaml-cpp/emitterstyle.h
+    -- Up-to-date: /usr/local/include/yaml-cpp/contrib
+    -- Installing: /usr/local/include/yaml-cpp/contrib/graphbuilder.h
+    -- Installing: /usr/local/include/yaml-cpp/contrib/anchordict.h
+    -- Installing: /usr/local/include/yaml-cpp/stlemitter.h
+    -- Installing: /usr/local/include/yaml-cpp/ostream_wrapper.h
+    -- Installing: /usr/local/lib64/cmake/yaml-cpp/yaml-cpp-targets.cmake
+    -- Installing: /usr/local/lib64/cmake/yaml-cpp/yaml-cpp-targets-noconfig.cmake
+    -- Installing: /usr/local/lib64/cmake/yaml-cpp/yaml-cpp-config.cmake
+    -- Installing: /usr/local/lib64/cmake/yaml-cpp/yaml-cpp-config-version.cmake
+    -- Installing: /usr/local/lib64/pkgconfig/yaml-cpp.pc
+    ```
 
-```bash
-...
--- Installing: /usr/local/include/yaml-cpp/binary.h
--- Installing: /usr/local/include/yaml-cpp/anchor.h
--- Installing: /usr/local/include/yaml-cpp/eventhandler.h
--- Installing: /usr/local/include/yaml-cpp/emitterstyle.h
--- Up-to-date: /usr/local/include/yaml-cpp/contrib
--- Installing: /usr/local/include/yaml-cpp/contrib/graphbuilder.h
--- Installing: /usr/local/include/yaml-cpp/contrib/anchordict.h
--- Installing: /usr/local/include/yaml-cpp/stlemitter.h
--- Installing: /usr/local/include/yaml-cpp/ostream_wrapper.h
--- Installing: /usr/local/lib64/cmake/yaml-cpp/yaml-cpp-targets.cmake
--- Installing: /usr/local/lib64/cmake/yaml-cpp/yaml-cpp-targets-noconfig.cmake
--- Installing: /usr/local/lib64/cmake/yaml-cpp/yaml-cpp-config.cmake
--- Installing: /usr/local/lib64/cmake/yaml-cpp/yaml-cpp-config-version.cmake
--- Installing: /usr/local/lib64/pkgconfig/yaml-cpp.pc
-```
+2. 安装onnxruntime。
 
-### 2. 安装onnxruntime
+    下载源码包[onnxruntime](https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-aarch64-1.22.0.tgz)，将下载好的源码放在`/opt/KDADK-TOOLS/util/`文件夹下，解压压缩包，然后设置环境变量。
 
-下载源码包[onnxruntime](https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-aarch64-1.22.0.tgz)。
+    ```bash
+    tar -xzf onnxruntime-linux-aarch64-1.22.0.tgz
+    export ONNXRUNTIME_HOME=/opt/KDADK-TOOLS/util/onnxruntime-linux-aarch64-1.22.0
+    export LD_LIBRARY_PATH=$ONNXRUNTIME_HOME/lib:$LD_LIBRARY_PATH
+    ```
 
-将下载好的源码放在`/opt/KDADK-TOOLS/util/`文件夹下，解压压缩包，然后设置环境变量。
+3. 配置python环境。
 
-```bash
-tar -xzf onnxruntime-linux-aarch64-1.22.0.tgz
-export ONNXRUNTIME_HOME=/opt/KDADK-TOOLS/util/onnxruntime-linux-aarch64-1.22.0
-export LD_LIBRARY_PATH=$ONNXRUNTIME_HOME/lib:$LD_LIBRARY_PATH
-```
+    在`/opt/KDADK-TOOLS/src/py/packages.txt`文件中记录了离线训练需要的python环境依赖，可以执行下述命令安装python环境依赖。
 
-### 3. 配置python环境
+    ```bash
+    pip install -r /opt/KDADK-TOOLS/src/py/packages.txt
+    ```
 
-在`/opt/KDADK-TOOLS/src/py/packages.txt`文件中记录了离线训练需要的python环境依赖，可以执行下述命令安装python环境依赖。
+4. 配置特征提取和推理库。
 
-```bash
-pip install -r /opt/KDADK-TOOLS/src/py/packages.txt
-```
+    下载[KTAG](https://gitcode.com/boostkit/KDADK-TOOLS/releases/download/v1.0.0/KDADK-1.0.0.zip
+    )动态库，执行下述命令进行配置。
 
-### 4. 配置特征提取和推理库
+    ```bash
+    cd /opt/KDADK-TOOLS/
+    mkdir lib
+    cd lib
+    wget https://gitcode.com/boostkit/KDADK-TOOLS/releases/download/v1.0.0/KDADK-1.0.0.zip
+    unzip KDADK-1.0.0.zip
+    ```
 
-下载[KTAG](https://gitcode.com/boostkit/KDADK-TOOLS/releases/download/v1.0.0/KDADK-1.0.0.zip
-)动态库，执行下述命令进行配置。
-
-```bash
-cd /opt/KDADK-TOOLS/
-mkdir lib
-cd lib
-wget https://gitcode.com/boostkit/KDADK-TOOLS/releases/download/v1.0.0/KDADK-1.0.0.zip
-unzip KDADK-1.0.0.zip
-```
-
-## 编译指导
+## 编译代码
 
 进入到`/opt/KDADK-TOOLS/demo`目录下执行下述命令编译。
 
