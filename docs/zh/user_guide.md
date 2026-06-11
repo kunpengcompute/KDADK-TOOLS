@@ -106,7 +106,8 @@
 
 ### config配置
 >
-> **须知：** 
+> ![](./public_sys-resources/icon-notice.gif)**须知：** 
+>
 > 所有路径支持绝对路径和相对路径，**推荐使用绝对路径**，在使用相对路径时默认从当前仓库根目录下算起。
 
 - **`training_data_paths`**：**模型训练**数据输入，每一类数据置于一个数组中，不同数组代表不同类别，一类数据可以存放在多个csv文件。
@@ -251,7 +252,8 @@ options:
 
 - config_label.yaml： 配置文件，可以配置打标签工具具体参数。
 
-> ❗**须知：** 
+> ![](./public_sys-resources/icon-notice.gif)**须知：** 
+>
 > 在inference推理时限定只输入一个csv特征文件，用户可以根据自己的需要来修改推理源码中的`inference=False`入参来取消这一限定。
 
 ```yaml
