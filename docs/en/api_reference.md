@@ -1,7 +1,7 @@
 
 # API Reference
 
-## 1. Feature Extraction APIs
+## Feature Extraction APIs
 
 ### extractor_init
 
@@ -11,9 +11,9 @@ Creates and initializes a feature extractor.
 
 **Function API**
 
-````bash
+```c
 feature_extractor *extractor_init(int link_type);
-````
+```
 
 **Parameter**
 
@@ -31,9 +31,9 @@ Destroys a feature extractor.
 
 **Function API**
 
-````bash
+```c
 void extractor_destroy(feature_extractor *extractor);
-````
+```
 
 **Parameter**
 
@@ -51,10 +51,10 @@ Processes a single packet by parsing the packet protocol and extracting features
 
 **Function API**
 
-````bash
+```c
 int process_packet(feature_extractor *extractor, const unsigned char *packet, uint32_t packet_len,
                    const struct timeval *ts, feature_vector *features, int *has_feature);
-````
+```
 
 **Parameters**
 
@@ -77,10 +77,10 @@ Processes a single data packet by parsing the packet protocol and extracting fea
 
 **Function API**
 
-````bash
+```c
 int process_packet_with_rawbow(feature_extractor *extractor, const unsigned char *packet, uint32_t packet_len,
                                const struct timeval *ts, feature_vector *features, rawbow *rawbows, int *has_feature);
-````
+```
 
 **Parameters**
 
@@ -104,9 +104,9 @@ Processes all remaining flows (only feature vectors are extracted).
 
 **Function API**
 
-````bash
+```c
 int extractor_finalize(feature_extractor *extractor, feature_vector_list *features);
-````
+```
 
 **Parameters**
 
@@ -125,9 +125,9 @@ Processes all remaining flows (feature vectors and `rawbow` are extracted).
 
 **Function API**
 
-````bash
+```c
 int extractor_finalize_with_rawbow(feature_extractor *extractor, feature_vector_list *features, rawbow_list *rawbows);
-````
+```
 
 **Parameters**
 
@@ -147,9 +147,9 @@ Obtains statistics.
 
 **Function API**
 
-````bash
+```c
 int extractor_get_statistics(feature_extractor *extractor, statistics *stats);
-````
+```
 
 **Parameters**
 
@@ -168,9 +168,9 @@ Resets statistics.
 
 **Function API**
 
-````bash
+```c
 void extractor_reset_statistics(feature_extractor *extractor);
-````
+```
 
 **Parameter**
 
@@ -180,7 +180,7 @@ void extractor_reset_statistics(feature_extractor *extractor);
 
 * None
 
-## 2. Feature Inference APIs
+## Feature Inference APIs
 
 ### inference_init
 
@@ -190,17 +190,17 @@ Creates and initializes an inference engine.
 
 **Function API**
 
-````bash
+```c
 inference_engine *inference_init(const inference_config *config);
-````
+```
 
 **Parameter**
 
-* `config_file`: inference configuration (including the configuration file path).
+* `config`: inference configuration (including the configuration file path).
 
 **Return Values**
 
-* A successful API call returns the inference engine handle. A failed API call returns `NULL`.
+* A successful API call returns the handle of the inference engine. A failed API call returns `NULL`.
 
 ### inference_destroy
 
@@ -210,9 +210,9 @@ Destroys an inference engine.
 
 **Function API**
 
-````bash
+```c
 void inference_destroy(inference_engine *engine);
-````
+```
 
 **Parameter**
 
@@ -230,9 +230,9 @@ Performs batch inference.
 
 **Function API**
 
-````bash
+```c
 int inference_predict(inference_engine *engine, const feature_vector_list *features, inference_result *result);
-````
+```
 
 **Parameters**
 
