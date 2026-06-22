@@ -2,10 +2,10 @@
 
 ## Change History
 
-|Issue|Date|Description|
-|--|--|--|
-|02|2026-06-30|Renamed KDADK-APPID as KTAG, with functions remaining unchanged.|
-|01|2026-03-30|This issue is the first official release. Updated the header files and software packages of the feature extraction and inference APIs for the KDADK-APPID network flow classification library, and provided a reference example of network flow classification of Kunpeng BoostKit for Intelligent Data Analytics (IDA).|
+|Date|Description|
+|--|--|
+|2026-06-30|Renamed KDADK-APPID as KTAG, with functions remaining unchanged.|
+|2026-03-30|This issue is the first official release. Updated the header files and software packages of the feature extraction and inference APIs for the KDADK-APPID network flow classification library, and provided a reference example of network flow classification of Kunpeng BoostKit for Intelligent Data Analytics (IDA).|
 
 ## Version Mapping
 
