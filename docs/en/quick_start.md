@@ -4,13 +4,13 @@ KDADK-TOOLS provides a demo example. You can use the executable file `kdadk_demo
 
 ## Feature Extraction
 
-The `-f` parameter indicates the feature extraction mode. The input is the collected traffic data in PCAP format, and the output is the feature data in CSV format. The input data `input.pcap` can be collected by using the [traffic collection tool](user_guide.md#1-traffic-collection-tools).
+The `-f` parameter indicates the feature extraction mode. The input is the collected traffic data in PCAP format, and the output is the feature data in CSV format. The input data `input.pcap` can be collected by using the [traffic collection tools](user_guide.md#traffic-collection-tools).
 
 ```bash
 /opt/KDADK-TOOLS/demo/build/kdadk_demo -f input.pcap -c output.csv
 ```
 
-The command output is as follows:
+The command output is as follows.
 
 ```bash
 ========== Feature extraction mode ==========
@@ -36,7 +36,7 @@ You can use the `feature_filter.py` script in the `data` directory to quickly pr
 
 ## Model Training
 
-The `-t` parameter indicates the model training mode. Configure the path to the CSV file required for model training in `src/config.yaml`. For details, see [Model Training](user_guide.md#1-model-training--t) in the user guide.
+The `-t` parameter indicates the model training mode. Configure the path to the CSV file required for model training in `src/config.yaml`. For details, see [Model Training](user_guide.md#model-training--t) in the user guide.
 
 ```bash
 /opt/KDADK-TOOLS/demo/build/kdadk_demo -t /opt/KDADK-TOOLS/src/config.yaml
@@ -44,7 +44,7 @@ The `-t` parameter indicates the model training mode. Configure the path to the 
 
 ## Model Verification
 
-The `-e` parameter indicates the model verification mode. Configure the path to the CSV file required for model verification in `src/config.yaml`. For details, see [Model Verification](user_guide.md#2-model-verification--e) in the user guide.
+The `-e` parameter indicates the model verification mode. Configure the path to the CSV file required for model verification in `src/config.yaml`. For details, see [Model Verification](user_guide.md#model-verification--e) in the user guide.
 
 ```bash
 /opt/KDADK-TOOLS/demo/build/kdadk_demo -e /opt/KDADK-TOOLS/src/config.yaml
@@ -52,17 +52,17 @@ The `-e` parameter indicates the model verification mode. Configure the path to 
 
 ## Online Inference
 
-The `-r` parameter indicates the online inference mode. Configure the path to the trained model weights in `src/config.yaml`. Ensure that the filtering criteria are the same as those used during model training. For details, see [Online Inference](user_guide.md#4-online-inference--r) in the user guide.
+The `-r` parameter indicates the online inference mode. Configure the path to the trained model weights in `src/config.yaml`. Ensure that the filtering criteria are the same as those used during model training. For details, see [Online Inference](user_guide.md#online-inference--r) in the user guide.
 
 The online inference mode supports two types of data input: offline PCAP data and real-time packet capture data on a network interface, specified by the `-p` and `-i` parameters, respectively.
 
-Case1: The input is multiple PCAP files, the output is a CSV file containing the features and prediction results, and the -p parameter is used to specify the path to the PCAP files.
+Method 1: The input is multiple PCAP files, the output is a CSV file containing the features and prediction results, and the `-p` parameter is used to specify the path to the PCAP files.
 
 ```bash
 /opt/KDADK-TOOLS/demo/build/kdadk_demo -r /opt/KDADK-TOOLS/src/config.yaml -p file1.pcap -p file2.pcap -m 1 -c result.csv
 ```
 
-Case2: The input is real-time packet capture data on a network interface, the output is a CSV file containing the features and prediction results, and the -i parameter is used to specify the network interface name.
+Method 2: The input is real-time packet capture data on a network interface, the output is a CSV file containing the features and prediction results, and the `-i` parameter is used to specify the network interface name.
 
 ```bash
 /opt/KDADK-TOOLS/demo/build/kdadk_demo -r /opt/KDADK-TOOLS/src/config.yaml -i eth0 -c result.csv
