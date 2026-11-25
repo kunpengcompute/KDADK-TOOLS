@@ -7,12 +7,11 @@ import logging
 from typing import List
 from sklearn.metrics import classification_report, accuracy_score
 import yaml
-import joblib
 import pandas as pd
 import numpy as np
 import os
 from datetime import datetime
-from utils import resolve_path
+from utils import resolve_path, load_verified_joblib
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -41,7 +40,7 @@ def _load_and_concat(file_paths: List[str]):
     return pd.concat(dfs, axis=0, ignore_index=True)
 
 
-def load_and_prepare_data(data_paths: List[List[str]], scaler_path: str):
+def load_and_prepare_data(data_paths: List[List[str]], scaler_path: str, scaler_sha256=None):
     """
      Load and prepare the data, and add labels to the dataset.
     """
@@ -67,7 +66,7 @@ def load_and_prepare_data(data_paths: List[List[str]], scaler_path: str):
 
     # standardization
     try:
-        scaler = joblib.load(scaler_path)
+        scaler = load_verified_joblib(scaler_path, scaler_sha256)
         X_scaled = scaler.transform(X)
     except FileNotFoundError as e:
         raise FileNotFoundError(f"{scaler_path} file not found") from e
@@ -207,11 +206,12 @@ def KDADK_Evaluation(config_file):
         return -1
 
     # Load and prepare test data
-    X_scaled, y, X_original, raw_bow = load_and_prepare_data(data_paths, scaler_path)
+    X_scaled, y, X_original, raw_bow = load_and_prepare_data(
+        data_paths, scaler_path, config.get('scaler_sha256'))
     
     # Load Model
     try:
-        rf_model = joblib.load(model_path)
+        rf_model = load_verified_joblib(model_path, config.get('model_sha256'))
     except FileNotFoundError:
         logging.error(f"{model_path} file not found")
         return -1

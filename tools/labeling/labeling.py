@@ -18,6 +18,12 @@ import glob
 import argparse
 import yaml
 import sys
+from pathlib import Path
+
+# Share artifact verification with the evaluation entry point, from any cwd.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src' / 'py'))
+from utils import load_verified_joblib
+
 import joblib
 import numpy as np
 import pandas as pd
@@ -289,14 +295,15 @@ def train_model(X, n_clusters=6, test_size=0.3, random_state=42, model_name='kme
 
 def predict_with_kmeans_model(model_path: str, 
                              scaler_path: str, 
-                             input_data: pd.DataFrame):
+                             input_data: pd.DataFrame,
+                             model_sha256=None, scaler_sha256=None):
     """
     使用训练好的模型进行聚类预测
     """
     try:
         logging.info("加载模型和预处理器...")
-        kmeans_model = joblib.load(model_path)
-        scaler = joblib.load(scaler_path)
+        kmeans_model = load_verified_joblib(model_path, model_sha256)
+        scaler = load_verified_joblib(scaler_path, scaler_sha256)
         
         logging.info("数据预处理...")
         numeric_columns = input_data.select_dtypes(include=[np.number]).columns
@@ -448,7 +455,8 @@ def inferenceing(config):
             return
 
         predictions = predict_with_kmeans_model(
-            model_path, scaler_path, X_test
+            model_path, scaler_path, X_test,
+            config.get('inference.model_sha256'), config.get('inference.scaler_sha256')
         )
         save_clustering_results(X_test, predictions, output_file, label_mapping, raw_bow)
         

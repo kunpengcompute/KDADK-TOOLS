@@ -2,6 +2,20 @@
 
 This user guide describes how to use the `kdadk_demo` program and the traffic collection and labeling tools.
 
+## Export and artifact security
+
+CSV `rawbow` fields starting with `= + - @` or ASCII whitespace/control bytes receive a single quote inside the field to force text interpretation. CSV escaping is preserved. Programmatic CSV readers also see this prefix. Use JSON for a payload view without this prefix, and regenerate older CSV exports.
+
+Python evaluation requires `model_sha256` and `scaler_sha256` in `src/config.yaml`. Labeling inference requires `inference.model_sha256` and `inference.scaler_sha256` in `tools/labeling/config_label.yaml`. Missing, malformed, or mismatching digests reject deserialization; existing configurations must be updated.
+
+In the trusted training environment, compute each completed model/scaler digest separately, distribute it through a trusted channel, and pin it in deployment configuration. Update pins after retraining:
+
+```bash
+python -c "import hashlib, pathlib, sys; print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())" result/model_classifier_2.pkl
+```
+
+A digest verifies identity with an already trusted artifact; it does not detect malicious models or training poisoning. Do not trust an unknown pickle together with a digest from the same untrusted source or automatically read digests from the download directory. Restrict configuration and code writes to trusted administrators. Matching pickle artifacts can still execute code with the Python process's privileges. Run evaluation and labeling as an ordinary user; they do not require capture privileges. Accepting untrusted third-party models requires a separate migration to a non-pickle format such as ONNX and isolated inference.
+
 ## Example Usage
 
 You can use the `-h` parameter to view the functions of the `kdadk_demo` program.
