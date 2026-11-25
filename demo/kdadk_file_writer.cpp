@@ -338,6 +338,13 @@ static int write_csv_feature_row_with_rawbow(FILE *fp, const feature_vector *fv,
 
     fprintf(fp, "\"");
 
+    // CSV quoting alone does not prevent spreadsheet formula evaluation.
+    // Also guard leading whitespace/control bytes that importers may ignore.
+    if (rb->len > 0 && rb->rawbow[0] != '\0' &&
+        ((unsigned char)rb->rawbow[0] <= 0x20 || strchr("=+-@", rb->rawbow[0]) != NULL)) {
+        fputc('\'', fp);
+    }
+
     for (uint32_t i = 0; i < rb->len && i < RAWBOW_MAX_LEN && rb->rawbow[i] != '\0'; i++) {
         char c = rb->rawbow[i];
 

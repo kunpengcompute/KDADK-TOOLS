@@ -2,6 +2,20 @@
 
 本用户指南提供了`kdadk_demo`示例的使用方法。同时，也提供了流量采集工具和流量打标签工具的使用方法。
 
+## 导出与模型工件安全
+
+CSV 的 `rawbow` 列以 `= + - @` 或 ASCII 空白/控制字符开头时，会在字段内增加单引号作为文本前缀；原有 CSV 引号转义保留。该前缀属于显示保护，程序读取 CSV 时也会看到它。需要未经此处理的载荷视图时使用 JSON 输出；历史 CSV 需要重新导出。
+
+Python 评估和打标签推理只加载已在可信配置中固定 SHA-256 的 pickle 工件。`src/config.yaml` 必须填写 `model_sha256`、`scaler_sha256`；`tools/labeling/config_label.yaml` 必须填写 `inference.model_sha256`、`inference.scaler_sha256`。空值、格式错误或摘要不匹配均拒绝反序列化，旧配置需要补充这两项。
+
+在可信训练环境中，对训练完成的每个模型和标准化器分别运行以下命令，将摘要通过可信渠道交给部署者并写入配置。重新训练后需要更新摘要：
+
+```bash
+python -c "import hashlib, pathlib, sys; print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())" result/model_classifier_2.pkl
+```
+
+摘要校验只能验证工件与已信任版本一致，不能判定模型是否恶意或训练结果是否被投毒。不要把来源不明的 pickle 与其同源摘要一起认定为可信；不要从下载目录自动读取摘要。配置和代码必须仅允许可信管理员修改。即使摘要匹配，pickle 仍有运行代码的能力，加载权限等于 Python 进程权限；模型评估和打标签不需要抓包权限，应以普通用户运行。若必须接收不可信第三方模型，应另行迁移到 ONNX 等非 pickle 格式并隔离推理进程。
+
 ## 示例用法
 
 `kdadk_demo`可以使用`-h`参数查看程序功能。

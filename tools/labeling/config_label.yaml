@@ -19,4 +19,7 @@ inference:
   ]
   model_path: "results/labeling_train_model.pkl"
   scaler_path: "results/labeling_train_scaler.pkl"
+  # Required: independently trusted model/scaler SHA-256 digests.
+  model_sha256: ""
+  scaler_sha256: ""
   output_file: "output/output.csv"

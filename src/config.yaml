@@ -14,6 +14,10 @@ training_data_paths:
 
 model_path_pkl: result/model_classifier_2.pkl
 scaler_path_pkl: result/scaler_2.pkl
+# Required for evaluation. Pin hashes from a trusted training environment.
+# Empty/mismatching hashes reject loading; see docs/zh/user_guide.md.
+model_sha256: ""
+scaler_sha256: ""
 model_path_onnx: result/model_classifier_2.onnx
 scaler_path_json: result/scaler_params_2.json
 

@@ -3,6 +3,26 @@
 # 
 
 from pathlib import Path
+import hashlib
+import hmac
+import io
+
+
+def load_verified_joblib(path, expected_sha256):
+    """Load only artifacts pinned in trusted configuration, never arbitrary pickle.
+
+    The digest must come from a trusted producer, independently of the artifact.
+    Hashing does not make an untrusted model safe. Deserialize the exact bytes
+    checked here so replacing the path after verification cannot bypass the check.
+    """
+    if (not isinstance(expected_sha256, str) or len(expected_sha256) != 64
+            or any(c not in '0123456789abcdefABCDEF' for c in expected_sha256)):
+        raise ValueError('A trusted 64-character SHA-256 digest is required for each model/scaler.')
+    payload = Path(path).read_bytes()
+    if not hmac.compare_digest(hashlib.sha256(payload).hexdigest(), expected_sha256.lower()):
+        raise ValueError(f'Artifact SHA-256 mismatch: {path}; refusing to deserialize.')
+    import joblib
+    return joblib.load(io.BytesIO(payload))
 
 def resolve_path(path_str, base_dir=None):
     """
